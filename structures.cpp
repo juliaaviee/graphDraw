@@ -1,6 +1,5 @@
 #include <structures.h>
 
-
 // Node constructor
 Node::Node(const QString& label, QGraphicsItem* parent)
     : QObject(), QGraphicsEllipseItem(parent), labelItem(new QGraphicsTextItem(this)) {
@@ -10,7 +9,6 @@ Node::Node(const QString& label, QGraphicsItem* parent)
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemIsSelectable);
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
-
 
     // Node label setup
     labelItem->setPlainText(label);
@@ -59,34 +57,55 @@ QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value) {
 
 void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
 
-        QColor borderColor = Qt::black;
-        int borderWidth = 2;
-        // Check if selected
-        if (isSelected()) {
-            borderColor = Qt::red;   // Change border color
-            borderWidth = 4;            // Make border thicker
-        }
+    QColor borderColor = Qt::black;
+    int borderWidth = 2;
+    // Check if selected
+    if (isSelected()) {
+        borderColor = Qt::red;   // Change border color
+        borderWidth = 4;         // Make border thicker
+    }
 
-        painter->setPen(QPen(borderColor, borderWidth));
-        painter->drawEllipse(rect());
+    painter->setPen(QPen(borderColor, borderWidth));
+    painter->drawEllipse(rect());
 }
 
 void Node::removeEdge(Edge* e) {
     cons.removeAt(cons.lastIndexOf(e));
 }
 Edge::Edge(Node* sourceNode, Node* destNode) : source(sourceNode), dest(destNode) {
-    setLine(QLineF(sourceNode->pos(), destNode->pos()));
+    QPointF cS = source->sceneBoundingRect().center();
+    QPointF cD = dest->sceneBoundingRect().center();
+    QLineF line(cS, cD);
+    QPointF direction = line.unitVector().p2() - line.unitVector().p1();
+    qreal radius = source->boundingRect().width() / 2.0;
+    QPointF start = cS + direction * radius;
+    QPointF end = cD - direction * radius;
+    setLine(QLineF(start,end));
 }
 
 Node* Edge::getSource() {
-    return this->source;
+    return source;
 }
 Node* Edge::getDest() {
-    return this->dest;
+    return dest;
 }
 
 void Edge::updatePos() {
-    setLine(QLineF(source->pos(), dest->pos()));
+    QPointF cS = source->sceneBoundingRect().center();
+    QPointF cD = dest->sceneBoundingRect().center();
+    QLineF line(cS, cD);
+    QPointF direction = line.unitVector().p2() - line.unitVector().p1();
+    qreal radius = source->boundingRect().width() /2.0;
+    QPointF start = cS + direction * radius;
+    QPointF end = cD - direction * radius;
+    setLine(QLineF(start,end));
 }
 
+void Edge::highlightEdge() {
+    setPen(QPen(Qt::red, 3));
+}
+
+void Edge::clearEdge() {
+    setPen(QPen(Qt::black, 1));
+}
 
