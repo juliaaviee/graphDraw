@@ -20,6 +20,8 @@ public:
     Node* getSource();
     Node* getDest();
     void updatePos();
+    void highlightEdge();
+    void clearEdge();
 private:
     Node* source;
     Node* dest;
