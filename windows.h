@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QGraphicsScene>
 #include <QTextEdit>
+#include <QLineEdit>
 #include <QShortcut>
 #include <QPushButton>
 #include <QTableView>
@@ -14,6 +15,8 @@
 #include <QStringList>
 #include <QHeaderView>
 #include <QListWidget>
+#include <QRadioButton>
+#include <QButtonGroup>
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QStyledItemDelegate>
@@ -25,6 +28,7 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -32,13 +36,14 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void traversal(Node* c, Node* d, QString r, QList<QPair<QString, QList<Edge*>>>& rs, std::unordered_map<Node*, bool> v, std::unordered_map<QString, Node*> b);
-    QList<Edge*> backtrack(const QString &r, std::unordered_map<QString, Node*> b);
+    void traversal(Node* c, Node* d, Route r, int sum, QList<Route>& rs, std::unordered_map<Node*, bool> v, std::unordered_map<QString, Node*> &b);
+    QList<Edge*> backtrack(const QString &r, std::unordered_map<QString, Node*> &b);
 protected:
     void closeEvent(QCloseEvent *event) override;
 private slots:
     void on_insertNode_clicked();
     void nodeInteraction(Node* node);
+    void edgeInteraction(Edge* e);
     void on_reset_clicked();
 
 private:
@@ -51,6 +56,8 @@ private:
     QPushButton* changeName;
     QPushButton* showMatrix;
     QPushButton* showRoutes;
+    QRadioButton* cost;
+    QRadioButton* length;
     Node* tmp = nullptr;
     Node* cur = nullptr;
     QList<Node*> nodes;
@@ -60,6 +67,7 @@ private:
     QShortcut* deletionS;
     QDialog* matrixWindow=nullptr;
     QDialog* routeWindow=nullptr;
+    QDialog* edgeWindow=nullptr;
 };
 
 class MatrixWindow: public QDialog
@@ -84,11 +92,21 @@ private:
     QStringList m_options;
 };
 
+class EdgeWindow : public QDialog
+{
+    Q_OBJECT
+public:
+    EdgeWindow(Edge* e, QWidget* parent = nullptr);
+private:
+    QLineEdit* w;
+    Edge* edge=nullptr;
+};
+
 class RouteWindow : public QDialog
 {
     Q_OBJECT
 public:
-    RouteWindow(const QList<QPair<QString, QList<Edge*>>> &rs, QWidget *parent = nullptr);
+    RouteWindow(const QList<Route> &rs, QWidget *parent = nullptr);
 protected:
     void closeEvent(QCloseEvent *event) override;
 private:
