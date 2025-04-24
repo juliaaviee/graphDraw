@@ -1,7 +1,5 @@
 #include "windows.h"
 #include "ui_mainwindow.h"
-#include <QTextStream>
-
 
 int n{1}, i{};
 
@@ -11,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     main_ui->setupUi(this);
     setWindowTitle("graphDraw");
+    setWindowIcon(QIcon(":/graph.png"));
     setFixedSize(799,584);
 
     scene = new QGraphicsScene(this);
@@ -27,6 +26,11 @@ MainWindow::MainWindow(QWidget *parent)
     changeName = main_ui->changeName;
     showRoutes = main_ui->routes;
     showMatrix = main_ui->showMatrix;
+
+    weightV = main_ui->weightV;
+    weightP = main_ui->weightP;
+    weightV->setChecked(true);
+    weightP->setChecked(true);
 
     QButtonGroup* sorting = new QButtonGroup(this);
     sorting->addButton(cost);
@@ -105,7 +109,7 @@ MainWindow::MainWindow(QWidget *parent)
                 return a.totalCost < b.totalCost;  // sort by cost
             });
         }
-        if(routeWindow) routeWindow->close();
+        if(routeWindow) {routeWindow->close(); delete routeWindow;}
         routeWindow = new RouteWindow(routes);
         routeWindow->show();
     });
@@ -127,16 +131,12 @@ MainWindow::MainWindow(QWidget *parent)
             temp[idx[no->getLabel()]] = 'X';
             QList<Edge*> es = no->getCons();
             for(Edge* e: es) {
-                if(e->getSource()!=no){
-                    temp[idx[e->getSource()->getLabel()]] = '1';
-                } else if(e->getDest()!=no) {
-                    temp[idx[e->getDest()->getLabel()]] = '1';
-                }
+                if(e->getDest()!=no) temp[idx[e->getDest()->getLabel()]] = '1';
             }
             QPair b = qMakePair(no->getLabel(), temp);
             matrix.append(b);
         }
-        if(matrixWindow) matrixWindow->close();
+        if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
         matrixWindow = new MatrixWindow(cnt,cnt,matrix);
         matrixWindow->show();
     });
@@ -148,9 +148,9 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::traversal(Node* c, Node* d, Route r, int sum, QList<Route>& rs, std::unordered_map<Node*, bool> v, std::unordered_map<QString, Node*> &b) {
-    if(v[c]) return; // If it has been visited already, return
+    if(v[c]) return; // If it has been visited already, end recursion
     if(c==d) {
-        // If we have arrived at our destination, concatenate it to the end of the string and append it to routes, then return
+        // If we have arrived at our destination, concatenate its label to the end of the string and append the route to routes, then end recursion
         r.visual += c->getLabel();
         r.totalCost = sum;
         r.edges = backtrack(r.visual,b);
@@ -175,7 +175,7 @@ QList<Edge*> MainWindow::backtrack(const QString &r, std::unordered_map<QString,
     for(int l = 0;l<s;l++) {
         QList<Edge*> re = b[t[l]]->getCons();
         for(auto e: re) {
-            if(b[t[l]] == e->getSource() && b[t[l+1]] == e->getDest()) {
+            if(b[t[l+1]] == e->getDest()) {
                 ans.append(e);
                 break;
             }
@@ -228,34 +228,18 @@ void MainWindow::nodeInteraction(Node *node) {
                     return;
                 }
             }
-
-            QList<Edge*> edges1 = node->getCons();
-            for(Edge* e: edges1) {
-                //If we find the counterpart to the connection about to be made, make them parallel through the nudge factor
-                if(node == e->getSource() && tmp == e->getDest()) {
-                   e->changeNudge(1);
-                   e->updatePos();
-                   Edge* ed = new Edge(tmp, node,1,1);
-                   MainWindow::connect(ed, &Edge::selected, this, &MainWindow::edgeInteraction);
-                   tmp->addEdge(ed);
-                   node->addEdge(ed);
-                   scene->addItem(ed);
-                   tmp=nullptr;
-                   if(edgeWindow) edgeWindow->close();
-                   edgeWindow = new EdgeWindow(ed);
-                   edgeWindow->show();
-                   return;
-                }
-            }
             Edge* e = new Edge(tmp, node);
             MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
             tmp->addEdge(e);
             node->addEdge(e);
             scene->addItem(e);
             tmp = nullptr;
-            if(edgeWindow) edgeWindow->close();
-            edgeWindow = new EdgeWindow(e);
-            edgeWindow->show();
+            if(weightV->checkState()==0) e->getLabel()->setVisible(false);
+            if(weightP->checkState()==2) {
+                if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
+                edgeWindow = new EdgeWindow(e);
+                edgeWindow->show();
+            }
         }
     } else tmp = nullptr;
     if(canDelete) {
@@ -282,45 +266,52 @@ void MainWindow::nodeInteraction(Node *node) {
                 }
             }
             scene->removeItem(e);
+            delete e;
         }
         scene->removeItem(node);
         nodes.removeAt(nodes.lastIndexOf(node));
+        delete node;
         i--;
     }
 }
 
 void MainWindow::edgeInteraction(Edge *e) {
     if(canDelete) {
-        Node* s = e->getSource();
-        Node* ds = e->getDest();
-        QList<Edge*> check = s->getCons();
-        for(Edge* ch: check) {
-            //If there's a counterpart to the edge to be deleted, center it
-            if(ch->getSource()==ds&& ch->getDest()==s) {
-                ch->changeNudge(0);
-                ch->updatePos();
-                break;
-            }
-        }
         e->getSource()->removeEdge(e);
         e->getDest()->removeEdge(e);
         scene->removeItem(e);
+        delete e;
         return;
     }
-    if(edgeWindow) edgeWindow->close();
+    if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
     edgeWindow = new EdgeWindow(e);
     edgeWindow->show();
 }
 void MainWindow::on_reset_clicked()
 {
-    if(routeWindow) routeWindow->close();
-    if(matrixWindow) matrixWindow->close();
+    if(routeWindow) {routeWindow->close(); delete routeWindow;}
+    if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
+    for(auto i: scene->items()) delete i;
     scene->clear();
     nodes.clear();
     n = 1;
     i=0;
 }
 
+void MainWindow::on_weightV_stateChanged(int b)
+{
+    if(b==Qt::Checked) {
+        for(auto it: scene->items()) {
+            Edge* e = qgraphicsitem_cast<Edge*>(it);
+            if(e) e->getLabel()->setVisible(true);
+        }
+    } else {
+        for(auto it: scene->items()) {
+            Edge* e = qgraphicsitem_cast<Edge*>(it);
+            if(e) e->getLabel()->setVisible(false);
+        }
+    }
+}
 void MainWindow::closeEvent(QCloseEvent *event) {
     //Ensuring children windows are closed
     if(routeWindow) routeWindow->close();
@@ -331,17 +322,19 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m, QWidget *parent) : QDialog(parent) {
     setWindowTitle("Adj. Matrix");
     setFixedSize(500,300);
+    setWindowIcon(QIcon(":/matrix.png"));
     view = new QTableView(this);
-    model = new QStandardItemModel(r,c);
+    model = new QStandardItemModel(r,c,this);
     int k{};
-    for(QPair<QString, QString> a: m) {
+    int s = m.size();
+    while(k<s) {
         //Setting headers
-        model->setHeaderData(k, Qt::Horizontal, a.first);
-        model->setHeaderData(k, Qt::Vertical, a.first);
-
+        model->setHeaderData(k, Qt::Horizontal, m[k].first);
+        model->setHeaderData(k, Qt::Vertical, m[k].first);
         for(int co = 0;co<r;co++) {
             //Looping through the row and populating table
-            QStandardItem *cur = new QStandardItem(a.second[co]);
+            QStandardItem *cur = new QStandardItem(m[k].second[co]);
+            if(co==k) cur->setFlags(cur->flags()&~Qt::ItemIsEditable&~Qt::ItemIsSelectable); //If it's part of the diagonal, make it not editable nor selectable
             cur->setTextAlignment(Qt::AlignCenter);
             model->setItem(k, co, cur);
         }
@@ -354,12 +347,6 @@ MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m
     ComboBoxDelegate* delegate = new ComboBoxDelegate({"0", "1"});
     view->setItemDelegate(delegate);
     view->setEditTriggers(QAbstractItemView::AllEditTriggers); //Items access edit mode in one click
-
-    //Loop that makes diagonal not editable nor selectable
-    for(int cou=0;cou<r;cou++) {
-        QStandardItem* it = model->item(cou,cou);
-        it->setFlags(it->flags()&~Qt::ItemIsEditable&~Qt::ItemIsSelectable);
-    }
 }
 
 void MatrixWindow::changeModel(int r, int c) {
@@ -414,16 +401,16 @@ EdgeWindow::EdgeWindow(Edge* e, QWidget *parent) : QDialog(parent) {
     setFixedSize(140,25);
     setWindowTitle("Insert weight");
     w = new QLineEdit(this);
+    w->setValidator(new QIntValidator(1,9999, this));
     edge = e;
     EdgeWindow::connect(w, &QLineEdit::returnPressed, this, [this]() {
         QString l = w->text();
-        if(l.isEmpty()) {
-            close();
-        }
+        if(l.isEmpty()) close();
         else {
             edge->setWeight(l.toInt());
             close();
         }
     });
 }
+
 
