@@ -2,6 +2,7 @@
 #define WINDOWS_H
 
 #include <structures.h>
+#include <QCheckBox>
 #include <QMainWindow>
 #include <QGraphicsScene>
 #include <QTextEdit>
@@ -19,8 +20,11 @@
 #include <QButtonGroup>
 #include <QCloseEvent>
 #include <QComboBox>
+#include <QIcon>
+#include <QIntValidator>
 #include <QStyledItemDelegate>
 #include <unordered_map>
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -45,6 +49,7 @@ private slots:
     void nodeInteraction(Node* node);
     void edgeInteraction(Edge* e);
     void on_reset_clicked();
+    void on_weightV_stateChanged(int arg1);
 
 private:
     Ui::MainWindow *main_ui;
@@ -58,6 +63,8 @@ private:
     QPushButton* showRoutes;
     QRadioButton* cost;
     QRadioButton* length;
+    QCheckBox* weightV;
+    QCheckBox* weightP;
     Node* tmp = nullptr;
     Node* cur = nullptr;
     QList<Node*> nodes;
