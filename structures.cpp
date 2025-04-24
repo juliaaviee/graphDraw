@@ -56,6 +56,8 @@ QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value) {
 }
 
 void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
 
     QColor borderColor = Qt::black;
     int borderWidth = 2;
@@ -72,7 +74,7 @@ void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
 void Node::removeEdge(Edge* e) {
     cons.removeAt(cons.lastIndexOf(e));
 }
-Edge::Edge(Node* sourceNode, Node* destNode, int w, int n) : source(sourceNode), dest(destNode), weight(w), nudge(n){
+Edge::Edge(Node* sourceNode, Node* destNode, int w) : source(sourceNode), dest(destNode), weight(w){
     setFlag(QGraphicsItem::ItemIsSelectable);
     setPen(QPen(Qt::black, 3));
     label = new QGraphicsTextItem(QString::number(weight), this);
@@ -83,15 +85,10 @@ Edge::Edge(Node* sourceNode, Node* destNode, int w, int n) : source(sourceNode),
     QPointF direction = line.unitVector().p2() - line.unitVector().p1();
     qreal radius = source->boundingRect().width() / 2.0;
 
-    // Perpendicular vector
-    QPointF normal(-line.dy(), line.dx());
-    normal /= std::sqrt(QPointF::dotProduct(normal, normal)); // normalize
-
-    QPointF offset = normal * nudge * 10;
-    QPointF start = cS + direction * radius + offset;
-    QPointF end = cD - direction * radius + offset;
+    QPointF start = cS + direction * radius;
+    QPointF end = cD - direction * radius;
     setLine(QLineF(start,end));
-    label->setPos((start + end) / 2 + offset);
+    label->setPos(line.pointAt(0.7));
 }
 
 QVariant Edge::itemChange(GraphicsItemChange change, const QVariant &value) {
@@ -109,27 +106,23 @@ Node* Edge::getDest() {
     return dest;
 }
 
-void Edge::changeNudge(int n) {
-    nudge = n;
-}
 void Edge::updatePos() {
     QPointF cS = source->sceneBoundingRect().center();
     QPointF cD = dest->sceneBoundingRect().center();
     QLineF line(cS, cD);
     QPointF direction = line.unitVector().p2() - line.unitVector().p1();
     qreal radius = source->boundingRect().width() / 2.0;
-    // Perpendicular vector
-    QPointF normal(-line.dy(), line.dx());
-    normal /= std::sqrt(QPointF::dotProduct(normal, normal)); // normalize
 
-    QPointF offset = normal * nudge * 10;
-    QPointF start = cS + direction * radius + offset;
-    QPointF end = cD - direction * radius + offset;
+    QPointF start = cS + direction * radius;
+    QPointF end = cD - direction * radius;
     setLine(QLineF(start,end));
-    label->setPos((start + end) / 2 + offset);
+    label->setPos(line.pointAt(0.7));
+    update();
 }
 
 void Edge::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
     // Draw the main line
     painter->setPen(pen());
     painter->drawLine(line());
@@ -164,12 +157,27 @@ QRectF Edge::boundingRect() const {
 
 QPainterPath Edge::shape() const {
     QPainterPath path;
-    path.moveTo(line().p1());
-    path.lineTo(line().p2());
 
-    QPainterPathStroker stroker;
-    stroker.setWidth(15); // makes the selection area wider
-    return stroker.createStroke(path);
+    // 1. Get the edge line
+    QLineF edgeLine = this->line();
+
+    // 2. Calculate the angle of the line
+    qreal angle = std::atan2(edgeLine.dy(), edgeLine.dx()); // in radians
+
+    // 3. Define a small rectangle centered at the middle of the line
+    QPointF center = edgeLine.pointAt(1); // midpoint
+
+    QRectF rect(-10, -10, 15, 15); // center-based
+
+    // 4. Create a transform to rotate and move the rectangle
+    QTransform transform;
+    transform.translate(center.x(), center.y());
+    transform.rotateRadians(angle);
+
+    // 5. Add the transformed rectangle to the path
+    path.addRect(transform.mapRect(rect));
+
+    return path;
 }
 void Edge::setWeight(int w) {
     weight = w;
@@ -180,12 +188,15 @@ int Edge::getWeight() {
     return weight;
 }
 
+QGraphicsTextItem* Edge::getLabel() {
+    return label;
+}
 void Edge::highlightEdge() {
     setPen(QPen(Qt::red, 5));
+    setZValue(1);
 }
 
 void Edge::clearEdge() {
     setPen(QPen(Qt::black, 3));
+    setZValue(0);
 }
-
-
