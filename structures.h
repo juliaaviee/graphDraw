@@ -17,19 +17,19 @@ class Node;
 class Edge : public QObject, public QGraphicsLineItem {
     Q_OBJECT
 public:
-    Edge(Node* sourceNode, Node* destNode, int w=1, int n=0);
-    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+    Edge(Node* sourceNode, Node* destNode, int w=1);
     Node* getSource();
     Node* getDest();
     void updatePos();
     void highlightEdge();
     void clearEdge();
     void setWeight(int w);
-    void changeNudge(int n);
     int getWeight();
+    QGraphicsTextItem* getLabel();
 signals:
     void selected(Edge* e);
 protected:
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
@@ -38,7 +38,6 @@ private:
     Node* source;
     Node* dest;
     int weight;
-    int nudge; // The nudge factor is what helps us make the edges parallel to each other, in case it's a 2-way connection
 };
 
 struct Route {
@@ -52,7 +51,6 @@ class Node : public QObject, public QGraphicsEllipseItem {
 public:
     explicit Node(const QString& label, QGraphicsItem* parent = nullptr);
     void setLabel(const QString& newLabel);
-    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
     QString getLabel();
     QList<Edge*> getCons();
     void addEdge(Edge* e);
@@ -60,9 +58,11 @@ public:
 signals:
     void selected(Node* node);
 protected:
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 private:
     QGraphicsTextItem* labelItem;
     QList<Edge*> cons;
 };
+
 #endif // STRUCTURES_H
