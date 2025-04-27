@@ -300,6 +300,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         nref[topLeft.column()]->addEdge(e);
         eref[key] = e;
         scene->addItem(e);
+        if(weightV->checkState()==0) e->getLabel()->setVisible(false);
         if(weightP->checkState()==2) {
             if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
             edgeWindow = new EdgeWindow(e);
