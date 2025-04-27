@@ -1,6 +1,5 @@
 #include "windows.h"
 #include "ui_mainwindow.h"
-
 int n{1}, i{};
 
 MainWindow::MainWindow(QWidget *parent)
@@ -80,12 +79,8 @@ MainWindow::MainWindow(QWidget *parent)
         std::unordered_map<Node*,bool> vis;
         std::unordered_map<QString, Node*> b;
         for(Node* no: nodes) {
-            if(no->getLabel()==s) {
-                st = no;
-            }
-            else if(no->getLabel()==d) {
-                f = no;
-            }
+            if(no->getLabel()==s) st = no;
+            else if(no->getLabel()==d) f = no;
             vis[no] = false;
             b[no->getLabel()] = no;
         }
@@ -119,26 +114,27 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         }
         std::unordered_map<QString, int> idx; //Unordered map is useful for mapping labels to indexes on a string
+        std::unordered_map<int, Node*> n_map; //Mapping index to node for connection handling in matrix window
         QList<QPair<QString, QString>> matrix;
         int cnt{};
         for(Node* no: nodes) {
             //Mapping labels to index
             idx[no->getLabel()] = cnt;
+            n_map[cnt] = no;
             cnt++;
         }
         for(Node* no: nodes) {
             QString temp(i, '0'); // Declaring string that will translate into row
             temp[idx[no->getLabel()]] = 'X';
             QList<Edge*> es = no->getCons();
-            for(Edge* e: es) {
-                if(e->getDest()!=no) temp[idx[e->getDest()->getLabel()]] = '1';
-            }
+            for(Edge* e: es) if(e->getDest()!=no) temp[idx[e->getDest()->getLabel()]] = '1';
             QPair b = qMakePair(no->getLabel(), temp);
             matrix.append(b);
         }
         if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
-        matrixWindow = new MatrixWindow(cnt,cnt,matrix);
+        matrixWindow = new MatrixWindow(cnt,cnt,matrix,n_map);
         matrixWindow->show();
+        connect(matrixWindow->getModel(), &QStandardItemModel::dataChanged, this, &MainWindow::matrixResponse);
     });
 }
 
@@ -287,6 +283,39 @@ void MainWindow::edgeInteraction(Edge *e) {
     edgeWindow = new EdgeWindow(e);
     edgeWindow->show();
 }
+
+void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &bottomRight) {
+    Q_UNUSED(bottomRight);
+    QModelIndex idx = matrixWindow->getModel()->index(topLeft.row(), topLeft.column());
+    QString comp = matrixWindow->getModel()->data(idx, Qt::DisplayRole).toString();
+    auto &nref = matrixWindow->getNodeMap();
+    auto &eref = matrixWindow->getCellCons();
+    std::pair<int,int> key(topLeft.row(),topLeft.column());
+    if(comp == "1")
+    {
+        if(eref[key]) return; //If the connection has already been made, ignore
+        //Otherwise, execute proper operations
+        Edge* e = new Edge(nref[topLeft.row()], nref[topLeft.column()]);
+        nref[topLeft.row()]->addEdge(e);
+        nref[topLeft.column()]->addEdge(e);
+        eref[key] = e;
+        scene->addItem(e);
+        if(weightP->checkState()==2) {
+            if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
+            edgeWindow = new EdgeWindow(e);
+            edgeWindow->show();
+        }
+    }
+    else
+    {
+        if(!eref[key]) return; //If there was no connection to begin with, ignore
+        nref[topLeft.row()]->removeEdge(eref[key]);
+        nref[topLeft.column()]->removeEdge(eref[key]);
+        scene->removeItem(eref[key]);
+        delete eref[key];
+        eref[key] = nullptr;
+    }
+}
 void MainWindow::on_reset_clicked()
 {
     if(routeWindow) {routeWindow->close(); delete routeWindow;}
@@ -319,7 +348,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if(edgeWindow) edgeWindow->close();
     event->accept();
 }
-MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m, QWidget *parent) : QDialog(parent) {
+MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m, const std::unordered_map<int, Node*> &nMap, QWidget *parent) : QDialog(parent), nodeMap(nMap){
     setWindowTitle("Adj. Matrix");
     setFixedSize(500,300);
     setWindowIcon(QIcon(":/matrix.png"));
@@ -335,11 +364,22 @@ MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m
             //Looping through the row and populating table
             QStandardItem *cur = new QStandardItem(m[k].second[co]);
             if(co==k) cur->setFlags(cur->flags()&~Qt::ItemIsEditable&~Qt::ItemIsSelectable); //If it's part of the diagonal, make it not editable nor selectable
+            //If x connects to y, search through x's connections to find the related edge
+            if(cur->text() == "1") {
+                QList<Edge*> es = nodeMap[k]->getCons();
+                for(auto e: es) {
+                    if(e->getDest() == nodeMap[co]) {
+                        cellCons[std::pair(k,co)] = e;
+                        break;
+                    }
+                }
+            }
             cur->setTextAlignment(Qt::AlignCenter);
             model->setItem(k, co, cur);
         }
         k++;
     }
+    //We must connect the model data change signal to main window's matrixResponse slot
     view->setModel(model);
     view->resize(500,300);
     view->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -349,11 +389,16 @@ MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m
     view->setEditTriggers(QAbstractItemView::AllEditTriggers); //Items access edit mode in one click
 }
 
-void MatrixWindow::changeModel(int r, int c) {
-    model = new QStandardItemModel(r,c);
-    view->setModel(model);
+QStandardItemModel* MatrixWindow::getModel() {
+    return model;
+}
+std::unordered_map<int, Node*>& MatrixWindow::getNodeMap() {
+    return nodeMap;
 }
 
+std::unordered_map<std::pair<int,int>, Edge*, PairHash>& MatrixWindow::getCellCons() {
+    return cellCons;
+}
 //The ComboBoxDelegate class was made to change the edit mode for each cell in the table view within MatrixWindow
 ComboBoxDelegate::ComboBoxDelegate(const QStringList &options, QObject *parent) : QStyledItemDelegate(parent), m_options(options){}
 
@@ -412,5 +457,3 @@ EdgeWindow::EdgeWindow(Edge* e, QWidget *parent) : QDialog(parent) {
         }
     });
 }
-
-
