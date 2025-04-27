@@ -3,7 +3,10 @@
 
 #include <structures.h>
 #include <QCheckBox>
+#include <QCloseEvent>
+#include <QComboBox>
 #include <QMainWindow>
+#include <QModelIndex>
 #include <QGraphicsScene>
 #include <QTextEdit>
 #include <QLineEdit>
@@ -18,13 +21,12 @@
 #include <QListWidget>
 #include <QRadioButton>
 #include <QButtonGroup>
-#include <QCloseEvent>
-#include <QComboBox>
 #include <QIcon>
 #include <QIntValidator>
 #include <QStyledItemDelegate>
 #include <unordered_map>
-
+#include <utility> // for std::pair
+#include <functional> // for std::hash
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -32,6 +34,9 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
+class MatrixWindow;
+class RouteWindow;
+class EdgeWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -48,6 +53,7 @@ private slots:
     void on_insertNode_clicked();
     void nodeInteraction(Node* node);
     void edgeInteraction(Edge* e);
+    void matrixResponse(const QModelIndex &topLeft, const QModelIndex &bottomRight);
     void on_reset_clicked();
     void on_weightV_stateChanged(int arg1);
 
@@ -72,20 +78,33 @@ private:
     bool canDelete = false;
     QShortcut* connectionS;
     QShortcut* deletionS;
-    QDialog* matrixWindow=nullptr;
-    QDialog* routeWindow=nullptr;
-    QDialog* edgeWindow=nullptr;
+    MatrixWindow* matrixWindow=nullptr;
+    RouteWindow* routeWindow=nullptr;
+    EdgeWindow* edgeWindow=nullptr;
+};
+
+//This struct was made so that we can map table coordinates to a specific edge
+struct PairHash {
+    std::size_t operator()(const std::pair<int, int>& p) const noexcept {
+        auto h1 = std::hash<int>{}(p.first);
+        auto h2 = std::hash<int>{}(p.second);
+        return h1 ^ (h2 << 1); // or use another combiner like boost::hash_combine
+    }
 };
 
 class MatrixWindow: public QDialog
 {
     Q_OBJECT
 public:
-    MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m, QWidget *parent = nullptr);
-    void changeModel(int r, int c);
+    MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m, const std::unordered_map<int, Node*> &nMap, QWidget *parent = nullptr);
+    std::unordered_map<int, Node*>& getNodeMap();
+    std::unordered_map<std::pair<int,int>, Edge*, PairHash>& getCellCons();
+    QStandardItemModel* getModel();
 private:
     QTableView *view;
     QStandardItemModel *model;
+    std::unordered_map<int, Node*> nodeMap;
+    std::unordered_map<std::pair<int,int>, Edge*, PairHash> cellCons;
 };
 
 class ComboBoxDelegate : public QStyledItemDelegate {
