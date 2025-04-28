@@ -100,6 +100,8 @@ public:
     std::unordered_map<int, Node*>& getNodeMap();
     std::unordered_map<std::pair<int,int>, Edge*, PairHash>& getCellCons();
     QStandardItemModel* getModel();
+    void removeCon(Edge* e);
+    void addCon(Edge* e);
 private:
     QTableView *view;
     QStandardItemModel *model;
