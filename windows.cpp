@@ -229,6 +229,7 @@ void MainWindow::nodeInteraction(Node *node) {
             tmp->addEdge(e);
             node->addEdge(e);
             scene->addItem(e);
+            if(matrixWindow) matrixWindow->addCon(e);
             tmp = nullptr;
             if(weightV->checkState()==0) e->getLabel()->setVisible(false);
             if(weightP->checkState()==2) {
@@ -273,6 +274,7 @@ void MainWindow::nodeInteraction(Node *node) {
 
 void MainWindow::edgeInteraction(Edge *e) {
     if(canDelete) {
+        if(matrixWindow) {matrixWindow->removeCon(e); return;}
         e->getSource()->removeEdge(e);
         e->getDest()->removeEdge(e);
         scene->removeItem(e);
@@ -351,7 +353,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m, const std::unordered_map<int, Node*> &nMap, QWidget *parent) : QDialog(parent), nodeMap(nMap){
-    setWindowTitle("Adj. Matrix");
+    setWindowTitle("Matriz adj.");
     setFixedSize(500,300);
     setWindowIcon(QIcon(":/matrix.png"));
     view = new QTableView(this);
@@ -398,6 +400,26 @@ std::unordered_map<int, Node*>& MatrixWindow::getNodeMap() {
     return nodeMap;
 }
 
+void MatrixWindow::removeCon(Edge *e) {
+    for(auto c: cellCons) {
+        if(c.second == e) {
+            model->setData(model->index(c.first.first, c.first.second), "0", Qt::EditRole);
+        }
+    }
+}
+
+void MatrixWindow::addCon(Edge* e) {
+    int r{-1}, c{-1};
+    Node* s = e->getSource();
+    Node* d = e->getDest();
+    for(auto n: nodeMap) {
+        if(n.second == s) r = n.first;
+        else if(n.second == d) c = n.first;
+        if(r != -1 && c != -1) break;
+    }
+    cellCons[std::make_pair(r,c)] = e;
+    model->setData(model->index(r,c), "1", Qt::EditRole);
+}
 std::unordered_map<std::pair<int,int>, Edge*, PairHash>& MatrixWindow::getCellCons() {
     return cellCons;
 }
@@ -421,7 +443,7 @@ void ComboBoxDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, 
 }
 
 RouteWindow::RouteWindow(const QList<Route> &rs, QWidget *parent) : QDialog(parent) {
-    setWindowTitle("Routes: " + QString::number(rs.length()));
+    setWindowTitle("Rotas: " + QString::number(rs.length()));
     setFixedSize(500,300);
     list = new QListWidget(this);
     for(Route r: rs) {
@@ -446,7 +468,7 @@ void RouteWindow::closeEvent(QCloseEvent *event) {
 
 EdgeWindow::EdgeWindow(Edge* e, QWidget *parent) : QDialog(parent) {
     setFixedSize(140,25);
-    setWindowTitle("Insert weight");
+    setWindowTitle("Insira o peso");
     w = new QLineEdit(this);
     w->setValidator(new QIntValidator(1,9999, this));
     edge = e;
