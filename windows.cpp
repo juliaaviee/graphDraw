@@ -300,6 +300,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         nref[topLeft.column()]->addEdge(e);
         eref[key] = e;
         scene->addItem(e);
+        connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
         if(weightV->checkState()==0) e->getLabel()->setVisible(false);
         if(weightP->checkState()==2) {
             if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
@@ -321,7 +322,7 @@ void MainWindow::on_reset_clicked()
 {
     if(routeWindow) {routeWindow->close(); delete routeWindow;}
     if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
-    for(auto i: scene->items()) delete i;
+    if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
     scene->clear();
     nodes.clear();
     n = 1;
