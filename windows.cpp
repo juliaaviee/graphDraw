@@ -269,6 +269,7 @@ void MainWindow::nodeInteraction(Node *node) {
         nodes.removeAt(nodes.lastIndexOf(node));
         delete node;
         i--;
+        if(matrixWindow) matrixWindow->close();
     }
 }
 
