@@ -67,6 +67,7 @@ private:
     QPushButton* changeName;
     QPushButton* showMatrix;
     QPushButton* showRoutes;
+    QPushButton* complete;
     QRadioButton* cost;
     QRadioButton* length;
     QCheckBox* weightV;
