@@ -404,7 +404,6 @@ MatrixWindow::MatrixWindow(int r, int c, const QList<QPair<QString, QString>> &m
         }
         k++;
     }
-    //We must connect the model data change signal to main window's matrixResponse slot
     view->setModel(model);
     view->resize(500,300);
     view->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
