@@ -136,6 +136,26 @@ MainWindow::MainWindow(QWidget *parent)
         matrixWindow->show();
         connect(matrixWindow->getModel(), &QStandardItemModel::dataChanged, this, &MainWindow::matrixResponse);
     });
+    MainWindow::connect(complete, &QPushButton::clicked, this, [this]() {
+        int size = nodes.size();
+        for(int i =0;i<size;i++) {
+            QList<Edge*> cons = nodes[i]->getCons();
+            for(int j = 0;j<size;j++) {
+                if(nodes[i]==nodes[j]) continue;
+                bool valid=true;
+                for(Edge* e: cons) if(e->getSource()==nodes[i]&&e->getDest()==nodes[j]) {valid =false; break;}
+                if(valid) {
+                    Edge* e = new Edge(nodes[i], nodes[j]);
+                    MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
+                    nodes[i]->addEdge(e);
+                    nodes[j]->addEdge(e);
+                    scene->addItem(e);
+                    if(matrixWindow) matrixWindow->addCon(e);
+                    if(weightV->checkState()==0) e->getLabel()->setVisible(false);
+                }
+            }
+        }
+    });
 }
 
 MainWindow::~MainWindow()
