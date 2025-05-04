@@ -25,6 +25,7 @@ public:
     void clearEdge();
     void setWeight(int w);
     int getWeight();
+    void directionToggle(bool t);
     QGraphicsTextItem* getLabel();
 signals:
     void selected(Edge* e);
@@ -38,6 +39,7 @@ private:
     Node* source;
     Node* dest;
     int weight;
+    bool directed=true;
 };
 
 struct Route {
