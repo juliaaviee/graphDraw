@@ -19,7 +19,6 @@ Node::Node(const QString& label, QGraphicsItem* parent)
     labelItem->setPos(-textRect.width() / 2, -textRect.height() / 2);
 }
 
-
 void Node::setLabel(const QString& newLabel) {
     labelItem->setPlainText(newLabel);
 
@@ -116,7 +115,8 @@ void Edge::updatePos() {
     QPointF start = cS + direction * radius;
     QPointF end = cD - direction * radius;
     setLine(QLineF(start,end));
-    label->setPos(line.pointAt(0.7));
+    qreal diff = directed ? 0.0 : 0.2;
+    label->setPos(line.pointAt(0.7-diff));
     update();
 }
 
@@ -126,25 +126,26 @@ void Edge::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
     // Draw the main line
     painter->setPen(pen());
     painter->drawLine(line());
+    if(directed) {
+        // Draw the arrowhead
+        QLineF l = line();
 
-    // Draw the arrowhead
-    QLineF l = line();
+        double angle = std::atan2(-l.dy(), l.dx()); // angle in radians
 
-    double angle = std::atan2(-l.dy(), l.dx()); // angle in radians
+        // Arrow size
+        const double arrowSize = 10;
 
-    // Arrow size
-    const double arrowSize = 10;
+        // Arrow tip point
+        QPointF arrowP1 = l.p2() - QPointF(std::cos(angle + M_PI / 6) * arrowSize,
+                                           -std::sin(angle + M_PI / 6) * arrowSize);
+        QPointF arrowP2 = l.p2() - QPointF(std::cos(angle - M_PI / 6) * arrowSize,
+                                           -std::sin(angle - M_PI / 6) * arrowSize);
 
-    // Arrow tip point
-    QPointF arrowP1 = l.p2() - QPointF(std::cos(angle + M_PI / 6) * arrowSize,
-                                       -std::sin(angle + M_PI / 6) * arrowSize);
-    QPointF arrowP2 = l.p2() - QPointF(std::cos(angle - M_PI / 6) * arrowSize,
-                                       -std::sin(angle - M_PI / 6) * arrowSize);
-
-    QPolygonF arrowHead;
-    arrowHead << l.p2() << arrowP1 << arrowP2;
-    painter->setBrush(QBrush(Qt::black));
-    painter->drawPolygon(arrowHead);
+        QPolygonF arrowHead;
+        arrowHead << l.p2() << arrowP1 << arrowP2;
+        painter->setBrush(QBrush(Qt::black));
+        painter->drawPolygon(arrowHead);
+    }
 }
 
 QRectF Edge::boundingRect() const {
@@ -157,26 +158,33 @@ QRectF Edge::boundingRect() const {
 
 QPainterPath Edge::shape() const {
     QPainterPath path;
+    if(directed){
+        // 1. Get the edge line
+        QLineF edgeLine = this->line();
 
-    // 1. Get the edge line
-    QLineF edgeLine = this->line();
+        // 2. Calculate the angle of the line
+        qreal angle = std::atan2(edgeLine.dy(), edgeLine.dx()); // in radians
 
-    // 2. Calculate the angle of the line
-    qreal angle = std::atan2(edgeLine.dy(), edgeLine.dx()); // in radians
+        // 3. Define a small rectangle centered at the middle of the line
+        QPointF center = edgeLine.pointAt(1); // midpoint
 
-    // 3. Define a small rectangle centered at the middle of the line
-    QPointF center = edgeLine.pointAt(1); // midpoint
+        QRectF rect(-10, -10, 15, 15); // center-based
 
-    QRectF rect(-10, -10, 15, 15); // center-based
+        // 4. Create a transform to rotate and move the rectangle
+        QTransform transform;
+        transform.translate(center.x(), center.y());
+        transform.rotateRadians(angle);
 
-    // 4. Create a transform to rotate and move the rectangle
-    QTransform transform;
-    transform.translate(center.x(), center.y());
-    transform.rotateRadians(angle);
-
-    // 5. Add the transformed rectangle to the path
-    path.addRect(transform.mapRect(rect));
-
+        // 5. Add the transformed rectangle to the path
+        path.addRect(transform.mapRect(rect));
+        return path;
+    } else {
+        path.moveTo(line().p1());
+        path.lineTo(line().p2());
+        QPainterPathStroker stroker;
+        stroker.setWidth(10);  // This defines the selection area
+        return stroker.createStroke(path);
+    }
     return path;
 }
 void Edge::setWeight(int w) {
@@ -186,6 +194,11 @@ void Edge::setWeight(int w) {
 
 int Edge::getWeight() {
     return weight;
+}
+
+void Edge::directionToggle(bool t) {
+    directed = t;
+    updatePos();
 }
 
 QGraphicsTextItem* Edge::getLabel() {
@@ -200,3 +213,4 @@ void Edge::clearEdge() {
     setPen(QPen(Qt::black, 3));
     setZValue(0);
 }
+
