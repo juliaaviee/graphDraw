@@ -11,6 +11,7 @@
 #include <QLineF>
 #include <QPointF>
 #include <QPolygonF>
+#include <QGraphicsScene>
 
 class Node;
 
