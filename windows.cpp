@@ -174,7 +174,7 @@ void MainWindow::traversal(Node* c, Node* d, Route r, int sum, QList<Route>& rs,
         // If we have arrived at our destination, concatenate its label to the end of the string and append the route to routes, then end recursion
         r.visual += c->getLabel();
         r.totalCost = sum;
-        r.edges = backtrack(r.visual,b, main_ui->enWeight->checkState());
+        r.edges = backtrack(r.visual,b, main_ui->enDirection->checkState());
         rs.append(r);
         return;
     }
