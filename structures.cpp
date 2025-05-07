@@ -65,7 +65,6 @@ void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
         borderColor = Qt::red;   // Change border color
         borderWidth = 4;         // Make border thicker
     }
-
     painter->setPen(QPen(borderColor, borderWidth));
     painter->drawEllipse(rect());
 }
@@ -182,7 +181,7 @@ QPainterPath Edge::shape() const {
         path.moveTo(line().p1());
         path.lineTo(line().p2());
         QPainterPathStroker stroker;
-        stroker.setWidth(10);  // This defines the selection area
+        stroker.setWidth(15);  // This defines the selection area
         return stroker.createStroke(path);
     }
     return path;
