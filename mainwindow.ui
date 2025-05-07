@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>799</width>
-    <height>602</height>
+    <height>611</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,7 +22,7 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>799</width>
+      <width>800</width>
       <height>451</height>
      </rect>
     </property>
@@ -31,8 +31,8 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>510</y>
-      <width>121</width>
+      <y>515</y>
+      <width>111</width>
       <height>41</height>
      </rect>
     </property>
@@ -45,7 +45,7 @@
      <rect>
       <x>10</x>
       <y>470</y>
-      <width>121</width>
+      <width>111</width>
       <height>31</height>
      </rect>
     </property>
@@ -53,8 +53,8 @@
    <widget class="QPushButton" name="reset">
     <property name="geometry">
      <rect>
-      <x>480</x>
-      <y>470</y>
+      <x>490</x>
+      <y>463</y>
       <width>131</width>
       <height>31</height>
      </rect>
@@ -66,9 +66,9 @@
    <widget class="QPushButton" name="changeName">
     <property name="geometry">
      <rect>
-      <x>150</x>
-      <y>510</y>
-      <width>121</width>
+      <x>190</x>
+      <y>517</y>
+      <width>100</width>
       <height>41</height>
      </rect>
     </property>
@@ -79,9 +79,9 @@
    <widget class="QTextEdit" name="newName">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>190</x>
       <y>470</y>
-      <width>121</width>
+      <width>101</width>
       <height>31</height>
      </rect>
     </property>
@@ -89,10 +89,10 @@
    <widget class="QPushButton" name="showMatrix">
     <property name="geometry">
      <rect>
-      <x>480</x>
-      <y>510</y>
+      <x>490</x>
+      <y>538</y>
       <width>131</width>
-      <height>41</height>
+      <height>31</height>
      </rect>
     </property>
     <property name="text">
@@ -102,8 +102,8 @@
    <widget class="QPushButton" name="routes">
     <property name="geometry">
      <rect>
-      <x>310</x>
-      <y>510</y>
+      <x>320</x>
+      <y>517</y>
       <width>71</width>
       <height>41</height>
      </rect>
@@ -115,8 +115,8 @@
    <widget class="QTextEdit" name="src">
     <property name="geometry">
      <rect>
-      <x>314</x>
-      <y>470</y>
+      <x>324</x>
+      <y>473</y>
       <width>51</width>
       <height>31</height>
      </rect>
@@ -125,8 +125,8 @@
    <widget class="QTextEdit" name="dst">
     <property name="geometry">
      <rect>
-      <x>394</x>
-      <y>470</y>
+      <x>404</x>
+      <y>473</y>
       <width>51</width>
       <height>31</height>
      </rect>
@@ -135,21 +135,21 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>300</x>
-      <y>470</y>
+      <x>310</x>
+      <y>473</y>
       <width>16</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>S:</string>
+     <string>O:</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
-      <x>380</x>
-      <y>470</y>
+      <x>390</x>
+      <y>473</y>
       <width>20</width>
       <height>31</height>
      </rect>
@@ -161,8 +161,8 @@
    <widget class="QRadioButton" name="sortCost">
     <property name="geometry">
      <rect>
-      <x>390</x>
-      <y>522</y>
+      <x>400</x>
+      <y>550</y>
       <width>51</width>
       <height>21</height>
      </rect>
@@ -174,8 +174,8 @@
    <widget class="QRadioButton" name="sortLen">
     <property name="geometry">
      <rect>
-      <x>390</x>
-      <y>544</y>
+      <x>400</x>
+      <y>530</y>
       <width>71</width>
       <height>20</height>
      </rect>
@@ -187,8 +187,8 @@
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>390</x>
-      <y>500</y>
+      <x>400</x>
+      <y>510</y>
       <width>61</width>
       <height>20</height>
      </rect>
@@ -201,7 +201,7 @@
     <property name="geometry">
      <rect>
       <x>660</x>
-      <y>510</y>
+      <y>515</y>
       <width>81</width>
       <height>22</height>
      </rect>
@@ -226,9 +226,9 @@
    <widget class="QPushButton" name="complete">
     <property name="geometry">
      <rect>
-      <x>650</x>
-      <y>470</y>
-      <width>111</width>
+      <x>490</x>
+      <y>500</y>
+      <width>131</width>
       <height>31</height>
      </rect>
     </property>
@@ -236,8 +236,170 @@
      <string>Completar</string>
     </property>
    </widget>
+   <widget class="QComboBox" name="insertAmount">
+    <property name="geometry">
+     <rect>
+      <x>125</x>
+      <y>523</y>
+      <width>38</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>1</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>2</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>3</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>4</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>5</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>6</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>7</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>8</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>9</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>10</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>125</x>
+      <y>505</y>
+      <width>31</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Qtd:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="insertionEr">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>560</y>
+      <width>91</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: red;</string>
+    </property>
+    <property name="text">
+     <string>*Rótulo já existe</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="insertionEr1">
+    <property name="geometry">
+     <rect>
+      <x>193</x>
+      <y>560</y>
+      <width>91</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: red;</string>
+    </property>
+    <property name="text">
+     <string>*Rótulo já existe</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="enDirection">
+    <property name="geometry">
+     <rect>
+      <x>660</x>
+      <y>460</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Direção</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="enWeight">
+    <property name="geometry">
+     <rect>
+      <x>660</x>
+      <y>485</y>
+      <width>51</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Peso</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="routeEr">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>570</y>
+      <width>141</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: red;</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="matrixEr">
+    <property name="geometry">
+     <rect>
+      <x>490</x>
+      <y>570</y>
+      <width>141</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: red;</string>
+    </property>
+    <property name="text">
+     <string>*Insira pelo menos 2 nós</string>
+    </property>
+   </widget>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>
