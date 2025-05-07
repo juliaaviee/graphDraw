@@ -1,4 +1,4 @@
-name: Build Qt App for macOS (Manual)
+name: graphDraw macOS build
 
 on:
   workflow_dispatch:  # Lets you click "Run workflow" in GitHub UI
