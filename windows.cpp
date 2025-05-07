@@ -1,6 +1,6 @@
 #include "windows.h"
 #include "ui_mainwindow.h"
-unsigned short n{1}, i{};
+unsigned short defaultNodeLabel{1}, i{};
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -9,7 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
     main_ui->setupUi(this);
     setWindowTitle("graphDraw");
     setWindowIcon(QIcon(":/graph.png"));
-    setFixedSize(799,584);
+    setFixedSize(800,590);
 
     scene = new QGraphicsScene(this);
     main_ui->graphicsView->setScene(scene);
@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     main_ui->insertionEr->setVisible(false);
     main_ui->insertionEr1->setVisible(false);
-
+    main_ui->matrixEr->setVisible(false);
     nodeAmount = main_ui->insertAmount;
 
     QButtonGroup* sorting = new QButtonGroup(this);
@@ -64,22 +64,26 @@ MainWindow::MainWindow(QWidget *parent)
             for(Node* no: nodes) {
                 if(no->getLabel()==l) {
                     main_ui->insertionEr1->setVisible(true);
+                    QTimer::singleShot(2000,main_ui->insertionEr1, &QLabel::hide);
                     return;
                 }
             }
             cur->setLabel(l);
-            main_ui->insertionEr1->setVisible(false);
         }
     });
     MainWindow::connect(showRoutes, &QPushButton::clicked, this, [this]() {
         QString s = src->toPlainText();
         QString d = dst->toPlainText();
         if(s.isEmpty()||d.isEmpty()) {
-            qDebug() << "Can't calculate routes with missing nodes";
+            main_ui->routeEr->setVisible(true);
+            main_ui->routeEr->setText("*Nó(s) faltando");
+            QTimer::singleShot(2000, main_ui->routeEr, &QLabel::hide);
             return;
         }
         if(s==d) {
-            qDebug() << "No routes to calculate, source and destination are the same";
+            main_ui->routeEr->setVisible(true);
+            main_ui->routeEr->setText("*Origem igual ao destino");
+            QTimer::singleShot(2000, main_ui->routeEr, &QLabel::hide);
             return;
         }
         Node* st=nullptr;
@@ -93,7 +97,9 @@ MainWindow::MainWindow(QWidget *parent)
             b[no->getLabel()] = no;
         }
         if(!st||!f) {
-            qDebug() << "Invalid label(s)";
+            main_ui->routeEr->setVisible(true);
+            main_ui->routeEr->setText("*Rótulo(s) inválido(s)");
+            QTimer::singleShot(2000, main_ui->routeEr, &QLabel::hide);
             return;
         }
         QList<Route> routes;
@@ -252,28 +258,48 @@ QList<Edge*> MainWindow::backtrack(const QString &r, std::unordered_map<QString,
 }
 void MainWindow::on_insertNode_clicked()
 {
+    QString l = name->toPlainText();
     if(nodeAmount->currentIndex()>0) { //If the user wants to insert more than 1 node in one go
-        int inc{};
-        while(inc < nodeAmount->currentIndex()+1) {
-            //This loop does check for duplicates yet, something to keep an eye on
-            QString num = QString::number(n);
-            Node *node = new Node(num);
+        if(!l.isEmpty()) {
+            for(Node* no: nodes) {
+                if(l==no->getLabel()) {
+                    main_ui->insertionEr->setVisible(true);
+                    QTimer::singleShot(2000, main_ui->insertionEr, &QLabel::hide);
+                    return;
+                }
+            }
+            Node *node = new Node(l);
             scene->addItem(node);
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
             nodes.append(node);
-            n++;
+            i++;
+            return;
+        }
+        int inc{};
+        qreal x{}, y{};
+        while(inc < nodeAmount->currentIndex()+1) {
+            //This loop does check for duplicates yet, something to keep an eye on
+            QString num = QString::number(defaultNodeLabel);
+            Node *node = new Node(num);
+            node->setPos(x,y);
+            scene->addItem(node);
+            MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
+            nodes.append(node);
+            defaultNodeLabel++;
             i++;
             inc++;
+            x+=50;
+            y+=50;
         }
         main_ui->insertionEr->setVisible(false);
         return;
     }
-    QString l = name->toPlainText();
     if(l.isEmpty()) {
-        QString num = QString::number(n);
+        QString num = QString::number(defaultNodeLabel);
         for(Node* no: nodes) {
             if(num==no->getLabel()) {
                 main_ui->insertionEr->setVisible(true);
+                QTimer::singleShot(2000, main_ui->insertionEr, &QLabel::hide);
                 return;
             }
         }
@@ -281,13 +307,13 @@ void MainWindow::on_insertNode_clicked()
         scene->addItem(node);
         MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
         nodes.append(node);
-        n++;
+        defaultNodeLabel++;
         i++;
-        main_ui->insertionEr->setVisible(false);
     } else {
         for(Node* no: nodes) {
             if(l==no->getLabel()) {
                 main_ui->insertionEr->setVisible(true);
+                QTimer::singleShot(2000, main_ui->insertionEr, &QLabel::hide);
                 return;
             }
         }
@@ -296,7 +322,6 @@ void MainWindow::on_insertNode_clicked()
         MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
         nodes.append(node);
         i++;
-        main_ui->insertionEr->setVisible(false);
     }
     if(matrixWindow) matrixWindow->close();
 }
@@ -382,6 +407,7 @@ void MainWindow::edgeInteraction(Edge *e) {
         e->getDest()->removeEdge(e);
         scene->removeItem(e);
         delete e;
+        if(routeWindow) routeWindow->close();
         return;
     }
     if(main_ui->enWeight->checkState()) {
@@ -395,7 +421,8 @@ void MainWindow::edgeInteraction(Edge *e) {
 void MainWindow::on_showMatrix_clicked()
 {
     if(nodes.size()<2) {
-        qDebug() << "Not enough nodes to construct a matrix";
+        main_ui->matrixEr->setVisible(true);
+        QTimer::singleShot(2000, main_ui->matrixEr, &QLabel::hide);
         return;
     }
     std::unordered_map<QString, int> idx; //Unordered map is useful for mapping labels to indexes on a string
@@ -481,7 +508,7 @@ void MainWindow::on_reset_clicked()
     for(auto it: scene->items()) delete it;
     scene->clear();
     nodes.clear();
-    n = 1;
+    defaultNodeLabel = 1;
     i=0;
 }
 
@@ -505,10 +532,14 @@ void MainWindow::on_enWeight_stateChanged(int b)
         weightP->setVisible(false);
         weightV->setVisible(false);
     }
+    if(routeWindow) routeWindow->close();
+    cost->setVisible(b);
+    if(!b) length->setChecked(true);
 }
 
 void MainWindow::on_enDirection_stateChanged(int b)
 {
+    if(routeWindow) routeWindow->close();
     if(matrixWindow) matrixWindow->toggleDirection(main_ui->enDirection->checkState());
     int s = scene->items().size();
     QList<QGraphicsItem*> l = scene->items();
@@ -582,7 +613,6 @@ MatrixWindow::MatrixWindow(unsigned short r, unsigned short c, const QList<QPair
         }
         k++;
     }
-    //We must connect the model data change signal to main window's matrixResponse slot
     view->setModel(model);
     view->resize(500,300);
     view->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -604,7 +634,6 @@ void MatrixWindow::toggleDirection(bool dir) {
 }
 
 void MatrixWindow::removeCon(Edge *e) {
-    //Check if it's working
     for(auto c: cellCons) {
         if(c.second == e) {
             c.second = nullptr;
@@ -626,7 +655,7 @@ void MatrixWindow::addCon(Edge* e) {
         else if(n.second == d) c = n.first;
         if(r != -1 && c != -1) break;
     }
-    cellCons[std::make_pair(r,c)] = e;
+    cellCons[std::pair(r,c)] = e;
     model->setData(model->index(r,c), "1", Qt::EditRole);
     if(!directed) {
         cellCons[std::pair(c,r)] = e;
@@ -636,7 +665,7 @@ void MatrixWindow::addCon(Edge* e) {
 std::unordered_map<std::pair<int,int>, Edge*, PairHash>& MatrixWindow::getCellCons() {
     return cellCons;
 }
-//The ComboBoxDelegate class was made to change the edit mode for each cell in the table view within MatrixWindow
+//The ComboBoxDelegate class was made to change the edit mode for each cell in the table view in MatrixWindow
 ComboBoxDelegate::ComboBoxDelegate(const QStringList &options, QObject *parent) : QStyledItemDelegate(parent), m_options(options){}
 
 QWidget* ComboBoxDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
@@ -675,7 +704,7 @@ RouteWindow::RouteWindow(const QList<Route> &rs, bool w, QWidget *parent) : QDia
     list->setFixedSize(500,300);
     connect(list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         for(Edge* e: tmp) e->clearEdge();
-        QList<Edge*> es = weighted ? routes[item->text().split(" ")[0]] : routes[item->text()];
+        QList<Edge*> es = routes[item->text().split(" ")[0]];
         tmp = es;
         for(Edge* e: es) e->highlightEdge();
     });
@@ -702,3 +731,5 @@ EdgeWindow::EdgeWindow(Edge* e, QWidget *parent) : QDialog(parent) {
         }
     });
 }
+
+
