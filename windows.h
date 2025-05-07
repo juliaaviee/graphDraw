@@ -7,7 +7,6 @@
 #include <QComboBox>
 #include <QMainWindow>
 #include <QModelIndex>
-#include <QGraphicsScene>
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QShortcut>
@@ -23,6 +22,7 @@
 #include <QButtonGroup>
 #include <QIcon>
 #include <QIntValidator>
+#include <QTimer>
 #include <QStyledItemDelegate>
 #include <unordered_map>
 #include <utility> // for std::pair
