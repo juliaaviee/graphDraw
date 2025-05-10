@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>799</width>
+    <width>802</width>
     <height>611</height>
    </rect>
   </property>
@@ -22,7 +22,7 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>800</width>
+      <width>802</width>
       <height>451</height>
      </rect>
     </property>
@@ -53,7 +53,7 @@
    <widget class="QPushButton" name="reset">
     <property name="geometry">
      <rect>
-      <x>490</x>
+      <x>500</x>
       <y>463</y>
       <width>131</width>
       <height>31</height>
@@ -89,7 +89,7 @@
    <widget class="QPushButton" name="showMatrix">
     <property name="geometry">
      <rect>
-      <x>490</x>
+      <x>500</x>
       <y>538</y>
       <width>131</width>
       <height>31</height>
@@ -200,8 +200,8 @@
    <widget class="QCheckBox" name="weightV">
     <property name="geometry">
      <rect>
-      <x>660</x>
-      <y>515</y>
+      <x>670</x>
+      <y>520</y>
       <width>81</width>
       <height>22</height>
      </rect>
@@ -213,8 +213,8 @@
    <widget class="QCheckBox" name="weightP">
     <property name="geometry">
      <rect>
-      <x>660</x>
-      <y>540</y>
+      <x>670</x>
+      <y>545</y>
       <width>101</width>
       <height>22</height>
      </rect>
@@ -226,7 +226,7 @@
    <widget class="QPushButton" name="complete">
     <property name="geometry">
      <rect>
-      <x>490</x>
+      <x>500</x>
       <y>500</y>
       <width>131</width>
       <height>31</height>
@@ -344,8 +344,8 @@
    <widget class="QCheckBox" name="enDirection">
     <property name="geometry">
      <rect>
-      <x>660</x>
-      <y>460</y>
+      <x>670</x>
+      <y>465</y>
       <width>61</width>
       <height>22</height>
      </rect>
@@ -357,8 +357,8 @@
    <widget class="QCheckBox" name="enWeight">
     <property name="geometry">
      <rect>
-      <x>660</x>
-      <y>485</y>
+      <x>670</x>
+      <y>490</y>
       <width>51</width>
       <height>22</height>
      </rect>
@@ -386,7 +386,7 @@
    <widget class="QLabel" name="matrixEr">
     <property name="geometry">
      <rect>
-      <x>490</x>
+      <x>500</x>
       <y>570</y>
       <width>141</width>
       <height>16</height>
@@ -397,6 +397,50 @@
     </property>
     <property name="text">
      <string>*Insira pelo menos 2 nós</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="delMode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>410</y>
+      <width>61</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QCheckBox{
+color: black;
+}
+QCheckBox::indicator {
+	background-color: red;
+}</string>
+    </property>
+    <property name="text">
+     <string>Deletar</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="conMode">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>385</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QCheckBox{
+color:black;
+}
+QCheckBox::indicator {
+ 	background-color:red;
+}
+
+</string>
+    </property>
+    <property name="text">
+     <string>Conectar</string>
     </property>
    </widget>
   </widget>
