@@ -606,7 +606,22 @@ MatrixWindow::MatrixWindow(unsigned short r, unsigned short c, const QList<QPair
             //If x connects to y, search through x's connections to find the related edge
             if(cur->text() == "1") {
                 QList<Edge*> es = nodeMap[k]->getCons();
-                for(auto e: es) if(e->getDest() == nodeMap[co]) {cellCons[std::pair(k,co)] = e; break;}
+                if(directed) {
+                    for(auto e: es) {
+                        if(e->getDest() == nodeMap[co]) {
+                            cellCons[std::pair(k,co)] = e;
+                            break;
+                        }
+                    }
+                } else {
+                    for(auto e: es) {
+                        if(e->getDest() == nodeMap[co]) {
+                            cellCons[std::pair(k,co)] = e;
+                            cellCons[std::pair(co,k)] = e;
+                            break;
+                        }
+                    }
+                }
             }
             cur->setTextAlignment(Qt::AlignCenter);
             model->setItem(k, co, cur);
