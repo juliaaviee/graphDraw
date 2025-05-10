@@ -46,15 +46,30 @@ MainWindow::MainWindow(QWidget *parent)
 
     connectionS = new QShortcut(QKeySequence("Ctrl+Z"), this);
     MainWindow::connect(connectionS, &QShortcut::activated, this, [this]() {
-        this->canDelete = false;
-        if(this->canConnect==false) this->canConnect = true;
-        else this->canConnect = false;
+        canDelete = false;
+        main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+        if(canConnect==false) {
+            canConnect = true;
+            main_ui->conMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: green;}");
+        }
+        else {
+            canConnect = false;
+            main_ui->conMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+        }
     });
 
     deletionS = new QShortcut(QKeySequence("Ctrl+X"), this);
     MainWindow::connect(deletionS, &QShortcut::activated, this, [this]() {
-        this->canConnect = false;
-        if(this->canDelete==false) this->canDelete = true; else this->canDelete = false;
+        canConnect = false;
+        main_ui->conMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+        if(canDelete==false) {
+            canDelete = true;
+            main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: green;}");
+        }
+        else {
+            canDelete = false;
+            main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+        }
     });
 
     MainWindow::connect(changeName, &QPushButton::clicked, this, [this]() {
