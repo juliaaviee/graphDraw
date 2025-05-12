@@ -8,7 +8,6 @@
 #include <QMainWindow>
 #include <QModelIndex>
 #include <QTextEdit>
-#include <QLineEdit>
 #include <QShortcut>
 #include <QPushButton>
 #include <QTableView>
@@ -76,7 +75,7 @@ private:
     QRadioButton* length;
     QCheckBox* weightV;
     QCheckBox* weightP;
-    QComboBox* nodeAmount;
+    CSpinBox* nodeAmount;
     Node* tmp = nullptr;
     Node* cur = nullptr;
     QList<Node*> nodes;
