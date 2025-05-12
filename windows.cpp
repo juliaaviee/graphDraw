@@ -37,7 +37,11 @@ MainWindow::MainWindow(QWidget *parent)
     main_ui->insertionEr->setVisible(false);
     main_ui->insertionEr1->setVisible(false);
     main_ui->matrixEr->setVisible(false);
-    nodeAmount = main_ui->insertAmount;
+
+    nodeAmount = new CSpinBox(this);
+    nodeAmount->setRange(1,10);
+    nodeAmount->move(125,525);
+    nodeAmount->resize(35,25);
 
     QButtonGroup* sorting = new QButtonGroup(this);
     sorting->addButton(cost);
@@ -119,11 +123,12 @@ MainWindow::MainWindow(QWidget *parent)
         }
         QList<Route> routes;
         Route r;
-
         if(main_ui->enWeight->checkState()) traversal(st,f, r, 0, routes,vis,b);
         else traversal(st,f,r,routes,vis,b);
         if(routes.empty()) {
-            qDebug() << "No possible routes from" << s << "to" << d;
+            main_ui->routeEr->setVisible(true);
+            main_ui->routeEr->setText("Nenhuma rota possível");
+            QTimer::singleShot(2000, main_ui->routeEr, &QLabel::hide);
             return;
         }
         if(length->isChecked()) {
@@ -274,7 +279,7 @@ QList<Edge*> MainWindow::backtrack(const QString &r, std::unordered_map<QString,
 void MainWindow::on_insertNode_clicked()
 {
     QString l = name->toPlainText();
-    if(nodeAmount->currentIndex()>0) { //If the user wants to insert more than 1 node in one go
+    if(nodeAmount->value()>1) { //If the user wants to insert more than 1 node in one go
         if(!l.isEmpty()) {
             for(Node* no: nodes) {
                 if(l==no->getLabel()) {
@@ -291,12 +296,12 @@ void MainWindow::on_insertNode_clicked()
             return;
         }
         int inc{};
-        qreal x{}, y{};
-        while(inc < nodeAmount->currentIndex()+1) {
+        qreal x{};
+        while(inc < nodeAmount->value()) {
             //This loop does check for duplicates yet, something to keep an eye on
             QString num = QString::number(defaultNodeLabel);
             Node *node = new Node(num);
-            node->setPos(x,y);
+            node->setPos(x,0);
             scene->addItem(node);
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
             nodes.append(node);
@@ -304,7 +309,6 @@ void MainWindow::on_insertNode_clicked()
             i++;
             inc++;
             x+=50;
-            y+=50;
         }
         main_ui->insertionEr->setVisible(false);
         return;
