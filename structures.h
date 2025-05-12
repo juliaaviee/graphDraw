@@ -9,9 +9,11 @@
 #include <QPainter>
 #include <QGraphicsLineItem>
 #include <QLineF>
+#include <QLineEdit>
 #include <QPointF>
 #include <QPolygonF>
 #include <QGraphicsScene>
+#include <QSpinBox>
 
 class Node;
 
@@ -47,6 +49,18 @@ struct Route {
     QString visual;
     QList<Edge*> edges;
     int totalCost=0;
+};
+
+class CSpinBox : public QSpinBox {
+    Q_OBJECT
+public:
+    using QSpinBox::QSpinBox;
+
+protected:
+    void stepBy(int steps) override {
+        QSpinBox::stepBy(steps);
+        lineEdit()->deselect();
+    }
 };
 
 class Node : public QObject, public QGraphicsEllipseItem {
