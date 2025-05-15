@@ -9,11 +9,9 @@ Node::Node(const QString& label, QGraphicsItem* parent)
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemIsSelectable);
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
-
     // Node label setup
     labelItem->setPlainText(label);
     labelItem->setFont(QFont("Arial", 12));
-
     // Center label inside the node
     QRectF textRect = labelItem->boundingRect();
     labelItem->setPos(-textRect.width() / 2, -textRect.height() / 2);
@@ -41,6 +39,7 @@ QList<Edge*> Node::getCons() {
 
 //itemChange was overriden so that the nodes handle related edges dynamically, and emit a signal whenever selected for making connections through MainWindow's nodeInteraction slot
 QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value) {
+    update();
     if(change == QGraphicsItem::ItemPositionChange) {
         for(Edge* e: cons) {
             e->updatePos();
@@ -69,6 +68,11 @@ void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
     painter->drawEllipse(rect());
 }
 
+QRectF Node::boundingRect() const {
+    qreal extra = (isSelected() ? 4 : 2)/2;  //Dynamically adjust boundingRect so that it leaves no traces when selected
+    return rect().adjusted(-extra, -extra, extra, extra);
+}
+
 void Node::removeEdge(Edge* e) {
     cons.removeAt(cons.lastIndexOf(e));
 }
@@ -80,13 +84,18 @@ Edge::Edge(Node* sourceNode, Node* destNode, int w) : source(sourceNode), dest(d
     QPointF cS = source->sceneBoundingRect().center();
     QPointF cD = dest->sceneBoundingRect().center();
     QLineF line(cS, cD);
+    QPointF normal = QPointF(-line.dy(), line.dx());
+    normal /= std::sqrt(QPointF::dotProduct(normal, normal));
+    qreal n = ctrpart ? (weight != ctrpart->getWeight() ? 10 : 0) : 0; //If there's a counterpart, nudge it, otherwise don't
+    QPointF offset = normal * n;
     QPointF direction = line.unitVector().p2() - line.unitVector().p1();
     qreal radius = source->boundingRect().width() / 2.0;
 
-    QPointF start = cS + direction * radius;
-    QPointF end = cD - direction * radius;
+    QPointF start = cS + direction * radius+offset;
+    QPointF end = cD - direction * radius+offset;
     setLine(QLineF(start,end));
-    label->setPos(line.pointAt(0.7));
+    QPointF center = (start + end) / 2;
+    label->setPos(center + QPointF(0, -10));
 }
 
 QVariant Edge::itemChange(GraphicsItemChange change, const QVariant &value) {
@@ -104,18 +113,25 @@ Node* Edge::getDest() {
     return dest;
 }
 
+Edge* Edge::getCounterpart() {
+    return ctrpart;
+}
 void Edge::updatePos() {
     QPointF cS = source->sceneBoundingRect().center();
     QPointF cD = dest->sceneBoundingRect().center();
     QLineF line(cS, cD);
+    QPointF normal = QPointF(-line.dy(), line.dx());
+    normal /= std::sqrt(QPointF::dotProduct(normal, normal));
+    qreal n = ctrpart ? (weight != ctrpart->getWeight() ? 10 : 0) : 0; //If there's a counterpart, nudge it, otherwise don't
+    QPointF offset = normal * n;
     QPointF direction = line.unitVector().p2() - line.unitVector().p1();
     qreal radius = source->boundingRect().width() / 2.0;
 
-    QPointF start = cS + direction * radius;
-    QPointF end = cD - direction * radius;
+    QPointF start = cS + direction * radius+offset;
+    QPointF end = cD - direction * radius+offset;
     setLine(QLineF(start,end));
-    qreal diff = directed ? 0.0 : 0.2;
-    label->setPos(line.pointAt(0.7-diff));
+    QPointF center = (start + end) / 2;
+    label->setPos(center + QPointF(0, -10));
     update();
 }
 
@@ -188,6 +204,10 @@ QPainterPath Edge::shape() const {
 }
 void Edge::setWeight(int w) {
     weight = w;
+    if(ctrpart) {
+        updatePos();
+        ctrpart->updatePos();
+    }
     label->setPlainText(QString::number(w));
 }
 
@@ -200,6 +220,10 @@ void Edge::directionToggle(bool t) {
     updatePos();
 }
 
+void Edge::setCounterpart(Edge* c) {
+    ctrpart = c;
+    updatePos();
+}
 QGraphicsTextItem* Edge::getLabel() {
     return label;
 }
