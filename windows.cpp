@@ -1,6 +1,11 @@
 #include "windows.h"
 #include "ui_mainwindow.h"
+#include <random>
+
 unsigned short defaultNodeLabel{1}, i{};
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_int_distribution<> wRange(1,20);
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -11,8 +16,10 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowIcon(QIcon(":/graph.png"));
     setFixedSize(800,590);
 
+    view = new GraphView(this);
+    view->resize(802,451);
     scene = new QGraphicsScene(this);
-    main_ui->graphicsView->setScene(scene);
+    view->setScene(scene);
 
     name = main_ui->nodeName;
     newname = main_ui->newName;
@@ -33,6 +40,10 @@ MainWindow::MainWindow(QWidget *parent)
     weightP->setChecked(true);
     main_ui->enWeight->setChecked(true);
     main_ui->enDirection->setChecked(true);
+    main_ui->conMode->setParent(this);
+    main_ui->delMode->setParent(this);
+    main_ui->conMode->raise();
+    main_ui->delMode->raise();
 
     main_ui->insertionEr->setVisible(false);
     main_ui->insertionEr1->setVisible(false);
@@ -155,7 +166,13 @@ MainWindow::MainWindow(QWidget *parent)
                     bool valid=true;
                     for(Edge* e: cons) if(e->getSource()==nodes[i]&&e->getDest()==nodes[j]) {valid =false; break;}
                     if(valid) {
-                        Edge* e = new Edge(nodes[i], nodes[j]);
+                        Edge* e = new Edge(nodes[i], nodes[j], wRange(gen));
+                        for(Edge* ct: nodes[i]->getCons()) {
+                            if(ct->getSource()==nodes[j]&& ct->getDest()==nodes[i]) {
+                                e->setCounterpart(ct);
+                                ct->setCounterpart(e);
+                            }
+                        }
                         MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
                         e->directionToggle(main_ui->enDirection->checkState());
                         nodes[i]->addEdge(e);
@@ -174,7 +191,7 @@ MainWindow::MainWindow(QWidget *parent)
                     bool valid=true;
                     for(Edge* e: cons) if((e->getSource()==nodes[i]&&e->getDest()==nodes[j]) || (e->getDest()==nodes[i]&&e->getSource()==nodes[j])) {valid =false; break;}
                     if(valid) {
-                        Edge* e = new Edge(nodes[i], nodes[j]);
+                        Edge* e = new Edge(nodes[i], nodes[j], wRange(gen));
                         MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
                         e->directionToggle(main_ui->enDirection->checkState());
                         nodes[i]->addEdge(e);
@@ -368,7 +385,22 @@ void MainWindow::nodeInteraction(Node *node) {
                     }
                 }
             }
+            Edge* ctr = nullptr;
+            if(main_ui->enDirection->checkState()) {
+                //If direction is enabled, check if there exists a counterpart to the edge we are about to make
+                for(Edge* e : node->getCons()) {
+                    if(e->getSource()==node&&e->getDest()==tmp) {
+                        //If it is found, store it and break loop
+                        ctr = e;
+                        break;
+                    }
+                }
+            }
             Edge* e = new Edge(tmp, node);
+            if(ctr) {
+                ctr->setCounterpart(e);
+                e->setCounterpart(ctr);
+            }
             MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
             e->directionToggle(main_ui->enDirection->checkState());
             tmp->addEdge(e);
@@ -379,7 +411,7 @@ void MainWindow::nodeInteraction(Node *node) {
             if(!weightV->checkState()) e->getLabel()->setVisible(false);
             if(weightP->checkState()) {
                 if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-                edgeWindow = new EdgeWindow(e);
+                edgeWindow = new EdgeWindow(e,this);
                 edgeWindow->show();
                 edgeWindow->raise();
             }
@@ -421,9 +453,14 @@ void MainWindow::nodeInteraction(Node *node) {
 
 void MainWindow::edgeInteraction(Edge *e) {
     if(canDelete) {
-        if(matrixWindow) {matrixWindow->removeCon(e); return;}
+        if(matrixWindow) {
+            if(e->getCounterpart()) e->getCounterpart()->setCounterpart(nullptr); //Update its counterpart
+            matrixWindow->removeCon(e);
+            return;
+        }
         e->getSource()->removeEdge(e);
         e->getDest()->removeEdge(e);
+        if(e->getCounterpart()) e->getCounterpart()->setCounterpart(nullptr);
         scene->removeItem(e);
         delete e;
         if(routeWindow) routeWindow->close();
@@ -431,7 +468,7 @@ void MainWindow::edgeInteraction(Edge *e) {
     }
     if(main_ui->enWeight->checkState()) {
         if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-        edgeWindow = new EdgeWindow(e);
+        edgeWindow = new EdgeWindow(e,this);
         edgeWindow->show();
         edgeWindow->raise();
     }
@@ -471,7 +508,7 @@ void MainWindow::on_showMatrix_clicked()
         inc++;
     }
     if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
-    matrixWindow = new MatrixWindow(cnt,cnt,matrix,n_map, main_ui->enDirection->checkState());
+    matrixWindow = new MatrixWindow(cnt,cnt,matrix,n_map, main_ui->enDirection->checkState(),this);
     matrixWindow->show();
     matrixWindow->raise();
     connect(matrixWindow->getModel(), &QStandardItemModel::dataChanged, this, &MainWindow::matrixResponse);
@@ -491,12 +528,27 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         nref[topLeft.row()]->addEdge(e);
         nref[topLeft.column()]->addEdge(e);
         eref[key] = e;
+        Edge* ctr = nullptr;
+        if(main_ui->enDirection->checkState()) {
+            //If direction is enabled, check if there exists a counterpart to the edge we are about to make
+            for(Edge* e : nref[topLeft.row()]->getCons()) {
+                if(e->getSource()==nref[topLeft.column()]&&e->getDest()==nref[topLeft.row()]) {
+                    //If it is found, store it and break loop
+                    ctr = e;
+                    break;
+                }
+            }
+        }
+        if(ctr) {
+            e->setCounterpart(ctr);
+            ctr->setCounterpart(e);
+        }
         scene->addItem(e);
         connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
         if(!weightV->checkState()) e->getLabel()->setVisible(false);
         if(weightP->checkState()) {
             if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-            edgeWindow = new EdgeWindow(e);
+            edgeWindow = new EdgeWindow(e,this);
             edgeWindow->show();
             edgeWindow->raise();
         }
@@ -511,6 +563,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         if(!eref[key]) return; //If there was no connection to begin with, ignore
         nref[topLeft.row()]->removeEdge(eref[key]);
         nref[topLeft.column()]->removeEdge(eref[key]);
+        if(eref[key]->getCounterpart()) eref[key]->getCounterpart()->setCounterpart(nullptr); //If there is a counterpart, center it
         scene->removeItem(eref[key]);
         eref[key] = nullptr;
         if(!main_ui->enDirection->checkState()) {
@@ -524,7 +577,6 @@ void MainWindow::on_reset_clicked()
     if(routeWindow) {routeWindow->close(); delete routeWindow;}
     if(matrixWindow) {matrixWindow->close();}
     if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-    for(auto it: scene->items()) delete it;
     scene->clear();
     nodes.clear();
     defaultNodeLabel = 1;
@@ -567,7 +619,9 @@ void MainWindow::on_enDirection_stateChanged(int b)
             Edge* e = qgraphicsitem_cast<Edge*>(l[i]);
             if(e) {
                 e->directionToggle(true);
-                Edge* E = new Edge(e->getDest(), e->getSource());
+                Edge* E = new Edge(e->getDest(), e->getSource(), e->getWeight());
+                e->setCounterpart(E);
+                E->setCounterpart(e);
                 e->getDest()->addEdge(E);
                 e->getSource()->addEdge(E);
                 MainWindow::connect(E, &Edge::selected, this, &MainWindow::edgeInteraction);
@@ -587,6 +641,7 @@ void MainWindow::on_enDirection_stateChanged(int b)
                         if(e->getSource()==E->getDest()&&e->getDest()==E->getSource()) {
                             E->getSource()->removeEdge(E);
                             E->getDest()->removeEdge(E);
+                            e->setCounterpart(nullptr);
                             scene->removeItem(E);
                             delete E;
                         }
