@@ -1,6 +1,7 @@
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 
+#include <QApplication>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsTextItem>
 #include <QFont>
@@ -13,7 +14,9 @@
 #include <QPointF>
 #include <QPolygonF>
 #include <QGraphicsScene>
+#include <QGraphicsView>
 #include <QSpinBox>
+#include <QWheelEvent>
 
 class Node;
 
@@ -29,6 +32,8 @@ public:
     void setWeight(int w);
     int getWeight();
     void directionToggle(bool t);
+    void setCounterpart(Edge* c);
+    Edge* getCounterpart();
     QGraphicsTextItem* getLabel();
 signals:
     void selected(Edge* e);
@@ -41,6 +46,7 @@ private:
     QGraphicsTextItem* label;
     Node* source;
     Node* dest;
+    Edge* ctrpart=nullptr;
     int weight;
     bool directed=true;
 };
@@ -72,6 +78,7 @@ public:
     QList<Edge*> getCons();
     void addEdge(Edge* e);
     void removeEdge(Edge* e);
+    QRectF boundingRect() const override;
 signals:
     void selected(Node* node);
 protected:
@@ -80,6 +87,32 @@ protected:
 private:
     QGraphicsTextItem* labelItem;
     QList<Edge*> cons;
+};
+
+class GraphView : public QGraphicsView {
+    Q_OBJECT
+
+public:
+    GraphView(QWidget *parent = nullptr)
+        : QGraphicsView(parent), zoomFactor(1.15) {}
+
+protected:
+    void wheelEvent(QWheelEvent *event) override {
+        if (QApplication::keyboardModifiers() == Qt::ControlModifier) {
+            double factor = event->angleDelta().y() > 0 ? zoomFactor : 1.0 / zoomFactor;
+            double newZoom = currentZoom * factor;
+
+            if (newZoom < minZoom || newZoom > maxZoom) return;  // Block zooming if out of bounds
+            scale(factor, factor);
+            currentZoom = newZoom;
+            event->accept();
+        } else QGraphicsView::wheelEvent(event);  // Default behavior
+    }
+private:
+    const double zoomFactor;
+    double currentZoom = 1.0;
+    double minZoom = 0.6;
+    double maxZoom = 2.3;
 };
 
 #endif // STRUCTURES_H
