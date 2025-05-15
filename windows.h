@@ -17,6 +17,7 @@
 #include <QStringList>
 #include <QHeaderView>
 #include <QListWidget>
+#include <QLabel>
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QIcon>
@@ -63,6 +64,7 @@ private slots:
 private:
     Ui::MainWindow *main_ui;
     QGraphicsScene *scene;
+    QGraphicsView *view;
     QTextEdit *name;
     QTextEdit* newname;
     QTextEdit* src;
@@ -76,6 +78,8 @@ private:
     QCheckBox* weightV;
     QCheckBox* weightP;
     CSpinBox* nodeAmount;
+    CSpinBox* minWRange;
+    CSpinBox* maxWRange;
     Node* tmp = nullptr;
     Node* cur = nullptr;
     QList<Node*> nodes;
@@ -137,6 +141,15 @@ public:
 private:
     QLineEdit* w;
     Edge* edge=nullptr;
+};
+
+class NodeWindow: public QDialog {
+    Q_OBJECT
+public:
+    NodeWindow(Node* n, const QList<Node*>& ns, QWidget* parent = nullptr);
+private:
+    QLineEdit* l;
+    QLabel* error;
 };
 
 class RouteWindow : public QDialog
