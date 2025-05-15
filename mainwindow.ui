@@ -17,16 +17,6 @@
    <iconset theme="applications-graphics"/>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QGraphicsView" name="graphicsView">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>802</width>
-      <height>451</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QPushButton" name="insertNode">
     <property name="geometry">
      <rect>
@@ -53,7 +43,7 @@
    <widget class="QPushButton" name="reset">
     <property name="geometry">
      <rect>
-      <x>500</x>
+      <x>480</x>
       <y>463</y>
       <width>131</width>
       <height>31</height>
@@ -89,7 +79,7 @@
    <widget class="QPushButton" name="showMatrix">
     <property name="geometry">
      <rect>
-      <x>500</x>
+      <x>480</x>
       <y>538</y>
       <width>131</width>
       <height>31</height>
@@ -187,14 +177,14 @@
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>400</x>
+      <x>395</x>
       <y>510</y>
-      <width>61</width>
+      <width>79</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Organizar:</string>
+     <string>Organizar por:</string>
     </property>
    </widget>
    <widget class="QCheckBox" name="weightV">
@@ -226,7 +216,7 @@
    <widget class="QPushButton" name="complete">
     <property name="geometry">
      <rect>
-      <x>500</x>
+      <x>480</x>
       <y>500</y>
       <width>131</width>
       <height>31</height>
@@ -326,7 +316,7 @@
    <widget class="QLabel" name="matrixEr">
     <property name="geometry">
      <rect>
-      <x>500</x>
+      <x>480</x>
       <y>570</y>
       <width>141</width>
       <height>16</height>
