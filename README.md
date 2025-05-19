@@ -4,6 +4,7 @@
 ### Dynamic adjacency matrix (establishing and removing connections through bits)
 ### Route calculator
 ### Direction and weight support
+### Node width scales with label length
 ### Basic commands:
 ### Ctrl+Z -> Connection mode enabling/disabling
 ### Ctrl+X -> Deletion mode enabling/disabling
