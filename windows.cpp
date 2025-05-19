@@ -198,11 +198,11 @@ MainWindow::MainWindow(QWidget *parent)
     });
     MainWindow::connect(minWRange, &CSpinBox::valueChanged, this, [this](){
         maxWRange->setMinimum(minWRange->value());
-        wRange.param(std::uniform_int_distribution<>(minWRange->value(), wRange.b()).param());
+        wRange.param(std::uniform_int_distribution<>::param_type(minWRange->value(), wRange.b()));
     });
     MainWindow::connect(maxWRange, &CSpinBox::valueChanged, this, [this](){
         minWRange->setMaximum(maxWRange->value());
-        wRange.param(std::uniform_int_distribution<>(wRange.a(), maxWRange->value()).param());
+        wRange.param(std::uniform_int_distribution<>::param_type(wRange.a(), maxWRange->value()));
     });
 }
 
