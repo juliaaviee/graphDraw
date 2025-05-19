@@ -38,9 +38,9 @@ MainWindow::MainWindow(QWidget *parent)
     nodeAmount->resize(35,25);
     minWRange = new CSpinBox(this);
     maxWRange = new CSpinBox(this);
-    minWRange->move(500,515);
+    minWRange->move(500,530);
     minWRange->setValue(1);
-    maxWRange->move(580,515);
+    maxWRange->move(580,530);
     maxWRange->setValue(20);
     minWRange->setRange(1,maxWRange->value());
     minWRange->resize(50,25);
