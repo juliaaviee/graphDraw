@@ -5,6 +5,7 @@
 #include <QGraphicsEllipseItem>
 #include <QGraphicsTextItem>
 #include <QFont>
+#include <QFontMetricsF>
 #include <QRectF>
 #include <QPen>
 #include <QPainter>
@@ -14,11 +15,37 @@
 #include <QPointF>
 #include <QPolygonF>
 #include <QGraphicsScene>
+#include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QSpinBox>
 #include <QWheelEvent>
 
 class Node;
+
+class WeightLabel : public QGraphicsTextItem {
+public:
+    WeightLabel(const QString& label, QGraphicsItem* parent) : QGraphicsTextItem(parent), weight(label) {
+        setFont(QFont("Arial", 10));
+        setPlainText(label);
+    }
+    QRectF boundingRect() const override {
+        // Return the base bounding rect with optional margin
+        QRectF base = QGraphicsTextItem::boundingRect();
+        return base.adjusted(-2, -2, 2, 2); // Add margin for padding/border
+    }
+protected:
+    void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget = nullptr) override {
+        // Calculate text bounds
+        QRectF rect = boundingRect();
+        // Draw background rectangle
+        painter->setBrush(Qt::white); // Semi-transparent white
+        painter->setPen(QPen(Qt::black, 1)); // Optional border
+        painter->drawRect(rect);
+        QGraphicsTextItem::paint(painter, option, widget); // Use base implementation
+    }
+private:
+    QString weight;
+};
 
 class Edge : public QObject, public QGraphicsLineItem {
     Q_OBJECT
@@ -34,7 +61,7 @@ public:
     void directionToggle(bool t);
     void setCounterpart(Edge* c);
     Edge* getCounterpart();
-    QGraphicsTextItem* getLabel();
+    WeightLabel* getLabel();
 signals:
     void selected(Edge* e);
 protected:
@@ -43,7 +70,7 @@ protected:
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
 private:
-    QGraphicsTextItem* label;
+    WeightLabel* label;
     Node* source;
     Node* dest;
     Edge* ctrpart=nullptr;
@@ -61,7 +88,6 @@ class CSpinBox : public QSpinBox {
     Q_OBJECT
 public:
     using QSpinBox::QSpinBox;
-
 protected:
     void stepBy(int steps) override {
         QSpinBox::stepBy(steps);
@@ -78,9 +104,11 @@ public:
     QList<Edge*> getCons();
     void addEdge(Edge* e);
     void removeEdge(Edge* e);
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     QRectF boundingRect() const override;
 signals:
     void selected(Node* node);
+    void edit(Node* node);
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
