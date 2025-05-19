@@ -37,6 +37,7 @@ QT_END_NAMESPACE
 class MatrixWindow;
 class RouteWindow;
 class EdgeWindow;
+class NodeWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -60,16 +61,15 @@ private slots:
     void on_enWeight_stateChanged(int b);
     void on_enDirection_stateChanged(int b);
     void on_showMatrix_clicked();
+    void nodeLabelEdit(Node* n);
 
 private:
     Ui::MainWindow *main_ui;
     QGraphicsScene *scene;
     QGraphicsView *view;
     QTextEdit *name;
-    QTextEdit* newname;
     QTextEdit* src;
     QTextEdit* dst;
-    QPushButton* changeName;
     QPushButton* showMatrix;
     QPushButton* showRoutes;
     QPushButton* complete;
@@ -81,7 +81,6 @@ private:
     CSpinBox* minWRange;
     CSpinBox* maxWRange;
     Node* tmp = nullptr;
-    Node* cur = nullptr;
     QList<Node*> nodes;
     bool canConnect=false;
     bool canDelete = false;
@@ -92,6 +91,7 @@ private:
     MatrixWindow* matrixWindow=nullptr;
     RouteWindow* routeWindow=nullptr;
     EdgeWindow* edgeWindow=nullptr;
+    NodeWindow* nodeWindow=nullptr;
 };
 
 //This struct was made so that we can map table coordinates to a specific edge
@@ -148,8 +148,10 @@ class NodeWindow: public QDialog {
 public:
     NodeWindow(Node* n, const QList<Node*>& ns, QWidget* parent = nullptr);
 private:
-    QLineEdit* l;
+    QLineEdit* newLabel;
     QLabel* error;
+    const QList<Node*>& nodes;
+    Node* node;
 };
 
 class RouteWindow : public QDialog
