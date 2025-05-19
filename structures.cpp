@@ -4,25 +4,39 @@
 Node::Node(const QString& label, QGraphicsItem* parent)
     : QObject(), QGraphicsEllipseItem(parent), labelItem(new QGraphicsTextItem(this)) {
 
+    QFont font("Arial", 12);
+    labelItem->setPlainText(label);
+    labelItem->setFont(font);
+    QFontMetricsF metrics(font);
+    int textWidth = metrics.horizontalAdvance(label) >= 30 ? metrics.horizontalAdvance(label)+20 : 40;
     // Node size and flags setup
-    setRect(-20, -20, 40, 40);
+    setRect(-20, -20, textWidth, 40);
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemIsSelectable);
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
-    // Node label setup
-    labelItem->setPlainText(label);
-    labelItem->setFont(QFont("Arial", 12));
-    // Center label inside the node
-    QRectF textRect = labelItem->boundingRect();
-    labelItem->setPos(-textRect.width() / 2, -textRect.height() / 2);
+    switch(textWidth) {
+    case 40:
+        labelItem->setPos(-labelItem->boundingRect().width()/2, -12);
+        break;
+    default:
+        labelItem->setPos(rect().topLeft().x()/1.6, -12);
+    }
 }
 
 void Node::setLabel(const QString& newLabel) {
+    prepareGeometryChange();
     labelItem->setPlainText(newLabel);
-
-    // Adjust label position
-    QRectF textRect = labelItem->boundingRect();
-    labelItem->setPos(-textRect.width() / 2, -textRect.height() / 2);
+    QFontMetricsF metrics(labelItem->font());
+    int textWidth = metrics.horizontalAdvance(newLabel) >= 30 ? metrics.horizontalAdvance(newLabel)+20 : 40;
+    // Node size and flags setup
+    setRect(-20, -20, textWidth, 40);
+    switch(textWidth) {
+        case 40:
+            labelItem->setPos(-labelItem->boundingRect().width()/2, -12);
+            break;
+        default:
+            labelItem->setPos(rect().topLeft().x()/1.6, -12);
+    }
 }
 
 QString Node::getLabel() {
@@ -53,6 +67,12 @@ QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value) {
     return QGraphicsEllipseItem::itemChange(change, value);
 }
 
+void Node::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if(event->button() == Qt::RightButton) {
+        emit edit(this);
+    }
+    QGraphicsEllipseItem::mousePressEvent(event);
+}
 void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     Q_UNUSED(option);
     Q_UNUSED(widget);
@@ -69,7 +89,7 @@ void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
 }
 
 QRectF Node::boundingRect() const {
-    qreal extra = (isSelected() ? 4 : 2)/2;  //Dynamically adjust boundingRect so that it leaves no traces when selected
+    qreal extra = isSelected() ? 2 : 1;  //Dynamically adjust boundingRect so that it leaves no traces when selected
     return rect().adjusted(-extra, -extra, extra, extra);
 }
 
@@ -79,23 +99,42 @@ void Node::removeEdge(Edge* e) {
 Edge::Edge(Node* sourceNode, Node* destNode, int w) : source(sourceNode), dest(destNode), weight(w){
     setFlag(QGraphicsItem::ItemIsSelectable);
     setPen(QPen(Qt::black, 3));
-    label = new QGraphicsTextItem(QString::number(weight), this);
-    label->setFont(QFont("Arial", 10));
-    QPointF cS = source->sceneBoundingRect().center();
-    QPointF cD = dest->sceneBoundingRect().center();
-    QLineF line(cS, cD);
-    QPointF normal = QPointF(-line.dy(), line.dx());
-    normal /= std::sqrt(QPointF::dotProduct(normal, normal));
-    qreal n = ctrpart ? (weight != ctrpart->getWeight() ? 10 : 0) : 0; //If there's a counterpart, nudge it, otherwise don't
-    QPointF offset = normal * n;
-    QPointF direction = line.unitVector().p2() - line.unitVector().p1();
-    qreal radius = source->boundingRect().width() / 2.0;
+    label = new WeightLabel(QString::number(weight), this);
+    QRectF sourceRect = source->sceneBoundingRect();
+    QRectF destRect = dest->sceneBoundingRect();
 
-    QPointF start = cS + direction * radius+offset;
-    QPointF end = cD - direction * radius+offset;
-    setLine(QLineF(start,end));
+    QPointF cS = sourceRect.center();
+    QPointF cD = destRect.center();
+    QLineF line(cS, cD);
+
+    // Offset for parallel edges
+    QPointF normal(-line.dy(), line.dx());
+    normal /= std::sqrt(QPointF::dotProduct(normal, normal));
+    qreal n = ctrpart ? (weight != ctrpart->getWeight() ? 10 : 0) : 0;
+    QPointF offset = normal * n;
+
+    // Compute direction
+    QPointF direction = line.unitVector().p2() - line.unitVector().p1();
+    QPointF normDir = direction / std::sqrt(QPointF::dotProduct(direction, direction));
+
+    // Compute radius along the direction of the edge
+    qreal radiusS = std::sqrt(
+        std::pow(normDir.x() * sourceRect.width() / 2.0, 2) +
+        std::pow(normDir.y() * sourceRect.height() / 2.0, 2)
+        );
+    qreal radiusD = std::sqrt(
+        std::pow(normDir.x() * destRect.width() / 2.0, 2) +
+        std::pow(normDir.y() * destRect.height() / 2.0, 2)
+        );
+
+    QPointF start = cS + normDir * radiusS + offset;
+    QPointF end = cD - normDir * radiusD + offset;
+    setLine(QLineF(start, end));
+
+    // Center the label
     QPointF center = (start + end) / 2;
-    label->setPos(center + QPointF(0, -10));
+    QRectF labelRect = label->boundingRect();
+    label->setPos(center.x() - labelRect.width() / 2, center.y() - labelRect.height() / 2);
 }
 
 QVariant Edge::itemChange(GraphicsItemChange change, const QVariant &value) {
@@ -117,21 +156,41 @@ Edge* Edge::getCounterpart() {
     return ctrpart;
 }
 void Edge::updatePos() {
-    QPointF cS = source->sceneBoundingRect().center();
-    QPointF cD = dest->sceneBoundingRect().center();
-    QLineF line(cS, cD);
-    QPointF normal = QPointF(-line.dy(), line.dx());
-    normal /= std::sqrt(QPointF::dotProduct(normal, normal));
-    qreal n = ctrpart ? (weight != ctrpart->getWeight() ? 10 : 0) : 0; //If there's a counterpart, nudge it, otherwise don't
-    QPointF offset = normal * n;
-    QPointF direction = line.unitVector().p2() - line.unitVector().p1();
-    qreal radius = source->boundingRect().width() / 2.0;
+    QRectF sourceRect = source->sceneBoundingRect();
+    QRectF destRect = dest->sceneBoundingRect();
 
-    QPointF start = cS + direction * radius+offset;
-    QPointF end = cD - direction * radius+offset;
-    setLine(QLineF(start,end));
+    QPointF cS = sourceRect.center();
+    QPointF cD = destRect.center();
+    QLineF line(cS, cD);
+
+    // Offset for parallel edges
+    QPointF normal(-line.dy(), line.dx());
+    normal /= std::sqrt(QPointF::dotProduct(normal, normal));
+    qreal n = ctrpart ? (weight != ctrpart->getWeight() ? 10 : 0) : 0;
+    QPointF offset = normal * n;
+
+    // Compute direction
+    QPointF direction = line.unitVector().p2() - line.unitVector().p1();
+    QPointF normDir = direction / std::sqrt(QPointF::dotProduct(direction, direction));
+
+    // Compute radius along the direction of the edge
+    qreal radiusS = std::sqrt(
+        std::pow(normDir.x() * sourceRect.width() / 2.0, 2) +
+        std::pow(normDir.y() * sourceRect.height() / 2.0, 2)
+        );
+    qreal radiusD = std::sqrt(
+        std::pow(normDir.x() * destRect.width() / 2.0, 2) +
+        std::pow(normDir.y() * destRect.height() / 2.0, 2)
+        );
+
+    QPointF start = cS + normDir * radiusS + offset;
+    QPointF end = cD - normDir * radiusD + offset;
+    setLine(QLineF(start, end));
+
+    // Center the label
     QPointF center = (start + end) / 2;
-    label->setPos(center + QPointF(0, -10));
+    QRectF labelRect = label->boundingRect();
+    label->setPos(center.x() - labelRect.width() / 2, center.y() - labelRect.height() / 2);
     update();
 }
 
@@ -224,7 +283,7 @@ void Edge::setCounterpart(Edge* c) {
     ctrpart = c;
     updatePos();
 }
-QGraphicsTextItem* Edge::getLabel() {
+WeightLabel* Edge::getLabel() {
     return label;
 }
 void Edge::highlightEdge() {
