@@ -611,6 +611,8 @@ void MainWindow::on_enWeight_stateChanged(int b)
     cost->setVisible(b);
     minWRange->setVisible(b);
     maxWRange->setVisible(b);
+    main_ui->maxW->setVisible(b);
+    main_ui->minW->setVisible(b);
     length->setChecked(!b);
     if(routeWindow) routeWindow->close();
 }
