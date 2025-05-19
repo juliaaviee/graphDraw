@@ -22,37 +22,44 @@ MainWindow::MainWindow(QWidget *parent)
     view->setScene(scene);
 
     name = main_ui->nodeName;
-    newname = main_ui->newName;
     src = main_ui->src;
     dst = main_ui->dst;
 
     cost = main_ui->sortCost;
     length = main_ui->sortLen;
 
-    changeName = main_ui->changeName;
     showRoutes = main_ui->routes;
     showMatrix = main_ui->showMatrix;
     complete = main_ui->complete;
 
+    nodeAmount = new CSpinBox(this);
+    nodeAmount->setRange(1,10);
+    nodeAmount->move(125,525);
+    nodeAmount->resize(35,25);
+    minWRange = new CSpinBox(this);
+    maxWRange = new CSpinBox(this);
+    minWRange->move(500,515);
+    minWRange->setValue(1);
+    maxWRange->move(580,515);
+    maxWRange->setValue(20);
+    minWRange->setRange(1,maxWRange->value());
+    minWRange->resize(50,25);
+    maxWRange->resize(50,25);
+    maxWRange->setRange(minWRange->value(),9999);
     weightV = main_ui->weightV;
     weightP = main_ui->weightP;
     weightV->setChecked(true);
     weightP->setChecked(true);
     main_ui->enWeight->setChecked(true);
     main_ui->enDirection->setChecked(true);
+
     main_ui->conMode->setParent(this);
     main_ui->delMode->setParent(this);
     main_ui->conMode->raise();
     main_ui->delMode->raise();
 
     main_ui->insertionEr->setVisible(false);
-    main_ui->insertionEr1->setVisible(false);
     main_ui->matrixEr->setVisible(false);
-
-    nodeAmount = new CSpinBox(this);
-    nodeAmount->setRange(1,10);
-    nodeAmount->move(125,525);
-    nodeAmount->resize(35,25);
 
     QButtonGroup* sorting = new QButtonGroup(this);
     sorting->addButton(cost);
@@ -84,21 +91,6 @@ MainWindow::MainWindow(QWidget *parent)
         else {
             canDelete = false;
             main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
-        }
-    });
-
-    MainWindow::connect(changeName, &QPushButton::clicked, this, [this]() {
-        if(cur) {
-            QString l = newname->toPlainText();
-            if(l.isEmpty()) return;
-            for(Node* no: nodes) {
-                if(no->getLabel()==l) {
-                    main_ui->insertionEr1->setVisible(true);
-                    QTimer::singleShot(2000,main_ui->insertionEr1, &QLabel::hide);
-                    return;
-                }
-            }
-            cur->setLabel(l);
         }
     });
     MainWindow::connect(showRoutes, &QPushButton::clicked, this, [this]() {
@@ -204,6 +196,14 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
+    MainWindow::connect(minWRange, &CSpinBox::valueChanged, this, [this](){
+        maxWRange->setMinimum(minWRange->value());
+        wRange.param(std::uniform_int_distribution<>(minWRange->value(), wRange.b()).param());
+    });
+    MainWindow::connect(maxWRange, &CSpinBox::valueChanged, this, [this](){
+        minWRange->setMaximum(maxWRange->value());
+        wRange.param(std::uniform_int_distribution<>(wRange.a(), maxWRange->value()).param());
+    });
 }
 
 MainWindow::~MainWindow()
@@ -308,6 +308,7 @@ void MainWindow::on_insertNode_clicked()
             Node *node = new Node(l);
             scene->addItem(node);
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
+            MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
             nodes.append(node);
             i++;
             return;
@@ -321,6 +322,7 @@ void MainWindow::on_insertNode_clicked()
             node->setPos(x,0);
             scene->addItem(node);
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
+            MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
             nodes.append(node);
             defaultNodeLabel++;
             i++;
@@ -342,6 +344,7 @@ void MainWindow::on_insertNode_clicked()
         Node *node = new Node(num);
         scene->addItem(node);
         MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
+        MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
         nodes.append(node);
         defaultNodeLabel++;
         i++;
@@ -356,6 +359,7 @@ void MainWindow::on_insertNode_clicked()
         Node *node = new Node(l);
         scene->addItem(node);
         MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
+        MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
         nodes.append(node);
         i++;
     }
@@ -363,7 +367,6 @@ void MainWindow::on_insertNode_clicked()
 }
 
 void MainWindow::nodeInteraction(Node *node) {
-    cur = node;
     if(canConnect) {
         if(!tmp) tmp = node;
         else if(tmp != node) {
@@ -411,7 +414,7 @@ void MainWindow::nodeInteraction(Node *node) {
             if(!weightV->checkState()) e->getLabel()->setVisible(false);
             if(weightP->checkState()) {
                 if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-                edgeWindow = new EdgeWindow(e,this);
+                edgeWindow = new EdgeWindow(e);
                 edgeWindow->show();
                 edgeWindow->raise();
             }
@@ -448,6 +451,7 @@ void MainWindow::nodeInteraction(Node *node) {
         delete node;
         i--;
         if(matrixWindow) matrixWindow->close();
+        if(nodeWindow) nodeWindow->close();
     }
 }
 
@@ -468,7 +472,7 @@ void MainWindow::edgeInteraction(Edge *e) {
     }
     if(main_ui->enWeight->checkState()) {
         if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-        edgeWindow = new EdgeWindow(e,this);
+        edgeWindow = new EdgeWindow(e);
         edgeWindow->show();
         edgeWindow->raise();
     }
@@ -508,10 +512,16 @@ void MainWindow::on_showMatrix_clicked()
         inc++;
     }
     if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
-    matrixWindow = new MatrixWindow(cnt,cnt,matrix,n_map, main_ui->enDirection->checkState(),this);
+    matrixWindow = new MatrixWindow(cnt,cnt,matrix,n_map, main_ui->enDirection->checkState());
     matrixWindow->show();
     matrixWindow->raise();
     connect(matrixWindow->getModel(), &QStandardItemModel::dataChanged, this, &MainWindow::matrixResponse);
+}
+
+void MainWindow::nodeLabelEdit(Node* n) {
+    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;}
+    nodeWindow = new NodeWindow(n, nodes);
+    nodeWindow->show();
 }
 void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &bottomRight) {
     Q_UNUSED(bottomRight);
@@ -548,7 +558,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         if(!weightV->checkState()) e->getLabel()->setVisible(false);
         if(weightP->checkState()) {
             if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-            edgeWindow = new EdgeWindow(e,this);
+            edgeWindow = new EdgeWindow(e);
             edgeWindow->show();
             edgeWindow->raise();
         }
@@ -577,6 +587,7 @@ void MainWindow::on_reset_clicked()
     if(routeWindow) {routeWindow->close(); delete routeWindow;}
     if(matrixWindow) {matrixWindow->close();}
     if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
+    for(auto it: scene->items()) delete it;
     scene->clear();
     nodes.clear();
     defaultNodeLabel = 1;
@@ -590,22 +601,18 @@ void MainWindow::on_weightV_stateChanged(int b)
         if(e) e->getLabel()->setVisible(b);
     }
 }
+
 void MainWindow::on_enWeight_stateChanged(int b)
 {
-    if(b) {
-        weightP->setChecked(true);
-        weightV->setChecked(true);
-        weightP->setVisible(true);
-        weightV->setVisible(true);
-    } else {
-        weightP->setChecked(false);
-        weightV->setChecked(false);
-        weightP->setVisible(false);
-        weightV->setVisible(false);
-    }
-    if(routeWindow) routeWindow->close();
+    weightP->setChecked(b);
+    weightV->setChecked(b);
+    weightP->setVisible(b);
+    weightV->setVisible(b);
     cost->setVisible(b);
-    if(!b) length->setChecked(true);
+    minWRange->setVisible(b);
+    maxWRange->setVisible(b);
+    length->setChecked(!b);
+    if(routeWindow) routeWindow->close();
 }
 
 void MainWindow::on_enDirection_stateChanged(int b)
@@ -655,10 +662,11 @@ void MainWindow::on_enDirection_stateChanged(int b)
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-    //Ensuring children windows are closed
-    if(routeWindow) routeWindow->close();
-    if(matrixWindow) matrixWindow->close();
-    if(edgeWindow) edgeWindow->close();
+    //Ensuring all windows are closed
+    if(routeWindow) {routeWindow->close(); delete routeWindow;}
+    if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
+    if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
+    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;}
     event->accept();
 }
 MatrixWindow::MatrixWindow(unsigned short r, unsigned short c, const QList<QPair<QString, QString>> &m, const std::unordered_map<int, Node*> &nMap, bool dir, QWidget *parent) : QDialog(parent), nodeMap(nMap), directed(dir){
@@ -780,7 +788,7 @@ RouteWindow::RouteWindow(const QList<Route> &rs, bool w, QWidget *parent) : QDia
     if(weighted) {
         for(Route r: rs) {
             //Mapping routes to their respective edges while populating list
-            routes[r.visual] = r.edges;
+            routes[r.visual + " Cost: " + QString::number(r.totalCost)] = r.edges;
             list->addItem(r.visual + " Cost: " + QString::number(r.totalCost));
         }
     } else {
@@ -793,7 +801,7 @@ RouteWindow::RouteWindow(const QList<Route> &rs, bool w, QWidget *parent) : QDia
     list->setFixedSize(500,300);
     connect(list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         for(Edge* e: tmp) e->clearEdge();
-        QList<Edge*> es = routes[item->text().split(" ")[0]];
+        QList<Edge*> es = routes[item->text()];
         tmp = es;
         for(Edge* e: es) e->highlightEdge();
     });
@@ -817,6 +825,37 @@ EdgeWindow::EdgeWindow(Edge* e, QWidget *parent) : QDialog(parent) {
         else {
             edge->setWeight(l.toInt());
             close();
+        }
+    });
+}
+
+NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QWidget *parent) : QDialog(parent), nodes(ns), node(n){
+    setFixedSize(135,35);
+    setWindowTitle("Insira o rótulo");
+    newLabel = new QLineEdit(this);
+    error = new QLabel(this);
+    error->setStyleSheet("color: red;");
+    error->setText("*Rótulo já existe");
+    error->setVisible(false);
+    error->move(0,20);
+    connect(newLabel, &QLineEdit::returnPressed, this, [this]() {
+        if(newLabel->text().isEmpty()) {
+            close();
+        } else {
+            bool valid=true;
+            for(Node* n: nodes) {
+                if(n->getLabel()==newLabel->text()) {
+                    if(n==node) close();
+                    error->setVisible(true);
+                    QTimer::singleShot(2000, error, &QLabel::hide);
+                    valid = false;
+                }
+            }
+            if(valid) {
+                node->setLabel(newLabel->text());
+                for(Edge* e : node->getCons()) e->updatePos();
+                close();
+            }
         }
     });
 }
