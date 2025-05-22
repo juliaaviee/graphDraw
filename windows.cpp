@@ -640,25 +640,25 @@ void MainWindow::on_enDirection_stateChanged(int b)
             }
         }
     } else {
-        for(int i = 0;i<s;i++) {
-            Edge* e = qgraphicsitem_cast<Edge*>(l[i]);
+        QList<Edge*> toRemove; // l is storing scene->items()
+        QList<Edge*> ignore;
+        for(auto it: l) {
+            Edge* e = qgraphicsitem_cast<Edge*>(it);
             if(e) {
-                for(int j = i+1;j<s;j++) {
-                    Edge* E = qgraphicsitem_cast<Edge*>(l[j]);
-                    if(E) {
-                        //If it's the counterpart to the l[i] edge, remove it
-                        if(e->getSource()==E->getDest()&&e->getDest()==E->getSource()) {
-                            E->getSource()->removeEdge(E);
-                            E->getDest()->removeEdge(E);
-                            e->setCounterpart(nullptr);
-                            scene->removeItem(E);
-                            delete E;
-                        }
-                    }
-                }
                 e->directionToggle(false);
-                if(matrixWindow) matrixWindow->addCon(e);
+                if(e->getCounterpart() && toRemove.lastIndexOf(e->getCounterpart())==-1&&ignore.lastIndexOf(e->getCounterpart())==-1) { //If the counterpart exists, hasn't been marked for removal already and isn't a protected edge
+                    toRemove.append(e->getCounterpart());
+                    ignore.append(e);
+                    e->setCounterpart(nullptr);
+                }
             }
+        }
+        for(Edge* e: toRemove) {
+            e->getSource()->removeEdge(e);
+            e->getDest()->removeEdge(e);
+            scene->removeItem(e);
+            if(matrixWindow) matrixWindow->addCon(e->getCounterpart());
+            delete e;
         }
     }
 }
