@@ -587,12 +587,158 @@ void MainWindow::on_reset_clicked()
     if(routeWindow) {routeWindow->close(); delete routeWindow;}
     if(matrixWindow) {matrixWindow->close();}
     if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-    for(auto it: scene->items()) delete it;
     scene->clear();
     nodes.clear();
     defaultNodeLabel = 1;
     i=0;
 }
+
+void MainWindow::on_save_clicked()
+{
+    if(scene->items().empty()) {qDebug()<<"Scene is empty"; return;}
+    QString content;
+    std::unordered_map<int, Node*> node_map;
+    std::unordered_map<Node*, int> idx;
+    int cnt{};
+    for(Node* n: nodes) { //We save all nodes and their respective positions to the first line, while mapping nodes to indexes
+        content += n->getLabel() + "," + QString::number(n->pos().x()) + "," + QString::number(n->pos().y()) + "|";
+        node_map[cnt] = n;
+        idx[n] = cnt;
+        cnt++;
+    }
+    content.removeLast();
+    content += "\n" + QString::number(main_ui->enDirection->checkState()) + "\n" + QString::number(main_ui->enWeight->checkState()) + "\n";
+    if(cnt>1) {
+        QList<QList<QString>> matrix(cnt, QList<QString>(cnt, "0"));
+        if(main_ui->enDirection->checkState()) {
+            for(auto it: scene->items()) {
+                Edge* e = qgraphicsitem_cast<Edge*>(it);
+                if(e) matrix[idx[e->getSource()]][idx[e->getDest()]] = QString::number(e->getWeight());
+            }
+        } else {
+            for(auto it: scene->items()) {
+                Edge* e = qgraphicsitem_cast<Edge*>(it);
+                if(e) {
+                    matrix[idx[e->getSource()]][idx[e->getDest()]] = QString::number(e->getWeight());
+                    matrix[idx[e->getDest()]][idx[e->getSource()]] = QString::number(e->getWeight());
+                }
+            }
+        }
+        for(QList<QString> row: matrix) {
+            for(QString col: row) content += col + ",";
+            content.removeLast();
+            content += "\n";
+        }
+    }
+    QString dirPath = QFileDialog::getExistingDirectory(
+        this,                               // Parent widget
+        "Select Directory",                 // Dialog title
+        QDir::homePath(),                   // Default path
+        QFileDialog::ShowDirsOnly           // Options
+        );
+    if (!dirPath.isEmpty()) {
+        QString filePath = dirPath + "/output.txt";
+        QFile file(filePath);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << content;
+            file.close();
+            qDebug() << "File saved at:" << filePath;
+        } else qWarning() << "Failed to save file:" << file.errorString();
+    }
+}
+void MainWindow::on_load_clicked()
+{
+    QString filepath = QFileDialog::getOpenFileName(
+        this,
+        "Open Text File",
+        QDir::homePath(),
+        "Text Files (*.txt);;All Files (*)"
+    );
+    if (!filepath.isEmpty()) {
+        QFile file(filepath);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&file);
+            QList<QString> lines = in.readAll().split("\n");
+            QList<QString> coords = lines[0].split("|");
+            main_ui->enDirection->setChecked(lines[1].toInt());
+            main_ui->enWeight->setChecked(lines[2].toInt());
+            file.close();
+            on_reset_clicked();
+            std::unordered_map<int, Node*> n_map;
+            for(QString n: coords) {
+                QList<QString> m = n.split(",");
+                Node *node = new Node(m[0]);
+                scene->addItem(node);
+                MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
+                MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
+                nodes.append(node);
+                n_map[i] = node;
+                i++;
+                node->setPos(m[1].toDouble(), m[2].toDouble());
+            }
+            if(i>1) {
+                QList<QList<QString>> matrix;
+                for(int c=3;c-3<i;c++) matrix.append(lines[c].split(",")); //Storing the matrix
+                std::unordered_map<std::pair<int,int>, bool, PairHash> cellCons; //Mapping coordinates to a boolean that indicates if we've already made this connection or not
+                if(main_ui->enDirection->checkState()){
+                    for(int c = 0;c<i;c++) {
+                        for(int j = 0;j<i;j++) {
+                            if(matrix[c][j]!="0" && !cellCons[std::pair(c,j)]) {
+                                if(matrix[j][c]!="0" && !cellCons[std::pair(j,c)]) {
+                                    Edge* e = new Edge(n_map[c], n_map[j], matrix[c][j].toInt());
+                                    Edge* E = new Edge(n_map[j], n_map[c], matrix[j][c].toInt());
+                                    e->setCounterpart(E);
+                                    E->setCounterpart(e);
+                                    e->getLabel()->setVisible(main_ui->enWeight->checkState());
+                                    E->getLabel()->setVisible(main_ui->enWeight->checkState());
+                                    e->directionToggle(true);
+                                    E->directionToggle(true);
+                                    n_map[c]->addEdge(e);
+                                    n_map[c]->addEdge(E);
+                                    n_map[j]->addEdge(e);
+                                    n_map[j]->addEdge(E);
+                                    MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
+                                    MainWindow::connect(E, &Edge::selected, this, &MainWindow::edgeInteraction);
+                                    scene->addItem(e);
+                                    scene->addItem(E);
+                                    cellCons[std::pair(c,j)] = true;
+                                    cellCons[std::pair(j,c)] = true;
+                                } else {
+                                    Edge* e = new Edge(n_map[c], n_map[j], matrix[c][j].toInt());
+                                    MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
+                                    e->getLabel()->setVisible(main_ui->enWeight->checkState());
+                                    e->directionToggle(true);
+                                    n_map[c]->addEdge(e);
+                                    n_map[j]->addEdge(e);
+                                    scene->addItem(e);
+                                    cellCons[std::pair(c,j)]= true;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for(int c = 0;c<i;c++) {
+                        for(int j = 0;j<i;j++) {
+                            if(!cellCons[std::pair(c,j)] && matrix[c][j] != "0"){
+                                Edge* e = new Edge(n_map[c], n_map[j], matrix[c][j].toInt());
+                                MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
+                                e->getLabel()->setVisible(main_ui->enWeight->checkState());
+                                e->directionToggle(false);
+                                n_map[c]->addEdge(e);
+                                n_map[j]->addEdge(e);
+                                scene->addItem(e);
+                                cellCons[std::pair(j,c)] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        } else qWarning() << "Could not open file:" << file.errorString();
+        return;
+    }
+}
+
 
 void MainWindow::on_weightV_stateChanged(int b)
 {
@@ -640,9 +786,9 @@ void MainWindow::on_enDirection_stateChanged(int b)
             }
         }
     } else {
-        QList<Edge*> toRemove; // l is storing scene->items()
+        QList<Edge*> toRemove;
         QList<Edge*> ignore;
-        for(auto it: l) {
+        for(auto it: l) { //l contains scene-items()
             Edge* e = qgraphicsitem_cast<Edge*>(it);
             if(e) {
                 e->directionToggle(false);
