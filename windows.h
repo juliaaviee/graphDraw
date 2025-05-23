@@ -62,6 +62,8 @@ private slots:
     void on_enDirection_stateChanged(int b);
     void on_showMatrix_clicked();
     void nodeLabelEdit(Node* n);
+    void on_load_clicked();
+    void on_save_clicked();
 
 private:
     Ui::MainWindow *main_ui;
