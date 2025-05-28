@@ -7,6 +7,8 @@
 #include <QComboBox>
 #include <QMainWindow>
 #include <QModelIndex>
+#include <QDir>
+#include <QFileDialog>
 #include <QTextEdit>
 #include <QShortcut>
 #include <QPushButton>
@@ -26,6 +28,8 @@
 #include <QStyledItemDelegate>
 #include <unordered_map>
 #include <utility> // for std::pair
+#include <QUndoStack>
+#include <QUndoCommand>
 #include <functional> // for std::hash
 
 QT_BEGIN_NAMESPACE
@@ -62,8 +66,8 @@ private slots:
     void on_enDirection_stateChanged(int b);
     void on_showMatrix_clicked();
     void nodeLabelEdit(Node* n);
-    void on_load_clicked();
     void on_save_clicked();
+    void on_load_clicked();
 
 private:
     Ui::MainWindow *main_ui;
@@ -90,10 +94,12 @@ private:
     bool weightEnabled = true;
     QShortcut* connectionS;
     QShortcut* deletionS;
+    QShortcut* revert;
     MatrixWindow* matrixWindow=nullptr;
     RouteWindow* routeWindow=nullptr;
     EdgeWindow* edgeWindow=nullptr;
     NodeWindow* nodeWindow=nullptr;
+    QUndoStack* undoStack = new QUndoStack(this);
 };
 
 //This struct was made so that we can map table coordinates to a specific edge
