@@ -7,6 +7,35 @@ std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_int_distribution<> wRange(1,20);
 
+class AddNodeOP : public QUndoCommand {
+public:
+    AddNodeOP(QGraphicsScene* scene, QList<QString> l, QList<Node*>& ns, short unsigned int& I, MatrixWindow* ma, NodeWindow* nw) : labels(l), scene(scene), nodes(ns), ma(ma), nw(nw), i(I){}
+    void undo() override {
+        for(QString l : labels){
+            for(auto it: scene->items()) {
+                Node* n = qgraphicsitem_cast<Node*>(it);
+                if(n) {
+                    if(n->getLabel()==l) {
+                        scene->removeItem(n);
+                        nodes.removeAt(nodes.lastIndexOf(n));
+                        delete n;
+                        if(ma) ma->close();
+                        if(nw) nw->close();
+                        i--;
+                    }
+                }
+            }
+        }
+    }
+private:
+    QList<QString> labels;
+    QGraphicsScene* scene;
+    QList<Node*>& nodes;
+    MatrixWindow* ma;
+    NodeWindow* nw;
+    short unsigned int& i;
+};
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , main_ui(new Ui::MainWindow)
@@ -66,31 +95,34 @@ MainWindow::MainWindow(QWidget *parent)
     sorting->addButton(length);
     length->setChecked(true);
 
-    connectionS = new QShortcut(QKeySequence("Ctrl+Z"), this);
+    connectionS = new QShortcut(QKeySequence("Ctrl+A"), this);
     MainWindow::connect(connectionS, &QShortcut::activated, this, [this]() {
         canDelete = false;
-        main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+        main_ui->delMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
         if(canConnect==false) {
             canConnect = true;
-            main_ui->conMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: green;}");
+            main_ui->conMode->setStyleSheet("QCheckBox::indicator {background-color: green;}");
         }
         else {
             canConnect = false;
-            main_ui->conMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+            main_ui->conMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
         }
     });
-
+    revert = new QShortcut(QKeySequence("Ctrl+Z"), this);
+    MainWindow::connect(revert, &QShortcut::activated, this, [this](){
+        undoStack->undo();
+    });
     deletionS = new QShortcut(QKeySequence("Ctrl+X"), this);
     MainWindow::connect(deletionS, &QShortcut::activated, this, [this]() {
         canConnect = false;
-        main_ui->conMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+        main_ui->conMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
         if(canDelete==false) {
             canDelete = true;
-            main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: green;}");
+            main_ui->delMode->setStyleSheet("QCheckBox::indicator {background-color: green;}");
         }
         else {
             canDelete = false;
-            main_ui->delMode->setStyleSheet("QCheckBox {color: black;} QCheckBox::indicator {background-color: red;}");
+            main_ui->delMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
         }
     });
     MainWindow::connect(showRoutes, &QPushButton::clicked, this, [this]() {
@@ -296,6 +328,7 @@ QList<Edge*> MainWindow::backtrack(const QString &r, std::unordered_map<QString,
 void MainWindow::on_insertNode_clicked()
 {
     QString l = name->toPlainText();
+    QList<QString> ls;
     if(nodeAmount->value()>1) { //If the user wants to insert more than 1 node in one go
         if(!l.isEmpty()) {
             for(Node* no: nodes) {
@@ -306,11 +339,13 @@ void MainWindow::on_insertNode_clicked()
                 }
             }
             Node *node = new Node(l);
+            ls.append(l);
             scene->addItem(node);
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
             MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
             nodes.append(node);
             i++;
+            undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
             return;
         }
         int inc{};
@@ -319,6 +354,7 @@ void MainWindow::on_insertNode_clicked()
             //This loop does check for duplicates yet, something to keep an eye on
             QString num = QString::number(defaultNodeLabel);
             Node *node = new Node(num);
+            ls.append(node->getLabel());
             node->setPos(x,0);
             scene->addItem(node);
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
@@ -329,7 +365,7 @@ void MainWindow::on_insertNode_clicked()
             inc++;
             x+=50;
         }
-        main_ui->insertionEr->setVisible(false);
+        undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
         return;
     }
     if(l.isEmpty()) {
@@ -348,6 +384,8 @@ void MainWindow::on_insertNode_clicked()
         nodes.append(node);
         defaultNodeLabel++;
         i++;
+        ls.append(num);
+        undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
     } else {
         for(Node* no: nodes) {
             if(l==no->getLabel()) {
@@ -362,6 +400,8 @@ void MainWindow::on_insertNode_clicked()
         MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
         nodes.append(node);
         i++;
+        ls.append(l);
+        undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
     }
     if(matrixWindow) matrixWindow->close();
 }
@@ -630,22 +670,22 @@ void MainWindow::on_save_clicked()
             content += "\n";
         }
     }
-    QString dirPath = QFileDialog::getExistingDirectory(
-        this,                               // Parent widget
-        "Select Directory",                 // Dialog title
-        QDir::homePath(),                   // Default path
-        QFileDialog::ShowDirsOnly           // Options
-        );
-    if (!dirPath.isEmpty()) {
-        QString filePath = dirPath + "/output.txt";
-        QFile file(filePath);
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        "Save File",
+        QDir::homePath(),           // Default path
+        "Text Files (*.txt);;All Files (*)"  // File filters
+    );
+
+    if (!fileName.isEmpty()) {
+        QFile file(fileName);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&file);
             out << content;
             file.close();
-            qDebug() << "File saved at:" << filePath;
-        } else qWarning() << "Failed to save file:" << file.errorString();
+        } else qWarning() << "Couldn't save file";
     }
+
 }
 void MainWindow::on_load_clicked()
 {
@@ -654,7 +694,7 @@ void MainWindow::on_load_clicked()
         "Open Text File",
         QDir::homePath(),
         "Text Files (*.txt);;All Files (*)"
-    );
+        );
     if (!filepath.isEmpty()) {
         QFile file(filepath);
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -1007,5 +1047,4 @@ NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QWidget *parent) : QDia
         }
     });
 }
-
 
