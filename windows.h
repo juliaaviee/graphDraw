@@ -53,19 +53,25 @@ public:
     void traversal(Node* c, Node* d, Route r, int sum, QList<Route>& rs, std::unordered_map<Node*, bool> v, std::unordered_map<QString, Node*> &b);
     void traversal (Node* c, Node* d, Route r, QList<Route>& rs, std::unordered_map<Node*, bool> v, std::unordered_map<QString, Node*> &b);
     QList<Edge*> backtrack(const QString &r, std::unordered_map<QString, Node*> &b, bool dir);
+    MatrixWindow* getMatrixWindow() {return matrixWindow;}
+    RouteWindow* getRouteWindow() {return routeWindow;}
+    EdgeWindow* getEdgeWindow() {return edgeWindow;}
+    NodeWindow* getNodeWindow() {return nodeWindow;}
+    const QList<Node*>& getNodes() {return nodes;}
 protected:
     void closeEvent(QCloseEvent *event) override;
-private slots:
-    void on_insertNode_clicked();
+public slots:
+    void nodeLabelEdit(Node* n);
     void nodeInteraction(Node* node);
     void edgeInteraction(Edge* e);
+private slots:
+    void on_insertNode_clicked();
     void matrixResponse(const QModelIndex &topLeft, const QModelIndex &bottomRight);
     void on_reset_clicked();
     void on_weightV_stateChanged(int b);
     void on_enWeight_stateChanged(int b);
     void on_enDirection_stateChanged(int b);
     void on_showMatrix_clicked();
-    void nodeLabelEdit(Node* n);
     void on_save_clicked();
     void on_load_clicked();
 
@@ -174,6 +180,153 @@ private:
     QList<Edge*> tmp;
     QListWidget *list;
     bool weighted;
+};
+
+class AddNodeOP : public QUndoCommand {
+public:
+    AddNodeOP(QGraphicsScene* scene, QList<QString> l, QList<Node*>& ns, short unsigned int& I, MainWindow* mw) : labels(l), scene(scene), nodes(ns), mW(mw),i(I){}
+    void undo() override {
+        for(QString l : labels){
+            for(auto it: scene->items()) {
+                Node* n = qgraphicsitem_cast<Node*>(it);
+                if(n) {
+                    if(n->getLabel()==l) {
+                        scene->removeItem(n);
+                        nodes.removeAt(nodes.lastIndexOf(n));
+                        delete n;
+                        i--;
+                    }
+                }
+            }
+        }
+        if(mW->getMatrixWindow()!=nullptr) {
+            MatrixWindow* mtw = mW->getMatrixWindow();
+            mtw->close();
+        }
+    }
+private:
+    QList<QString> labels;
+    QGraphicsScene* scene;
+    QList<Node*>& nodes;
+    MainWindow* mW;
+    short unsigned int& i;
+};
+
+struct EdgeInfo { // This struct was made to simplify rolling back a node removal (storing info on all edges that were deleted alongside it [if any])
+    std::pair<QString,QString> mainE;
+    bool ctrpart;
+    int edgeW;
+    int ctrpartW;
+};
+
+class RemoveNodeOP : public QUndoCommand {
+public:
+    RemoveNodeOP(QGraphicsScene* scene, Node* n, QPointF p, QList<Node*>& ns, short unsigned int& I, bool dir, bool wvis, MainWindow* mw) : label(n->getLabel()), Pos(p),scene(scene), nodes(ns), i(I), directed(dir), vis(wvis), mW(mw){
+        std::unordered_map<Edge*,bool> stored;
+        for(Edge* e : n->getCons()) {
+            if(!stored[e]){
+                EdgeInfo info;
+                info.mainE.first = e->getSource()->getLabel();
+                info.mainE.second = e->getDest()->getLabel();
+                info.edgeW = e->getWeight();
+                if(e->getCounterpart()) { // If there is a counterpart, store its info alongside the other edge, while also marking it so we don't mirror it
+                    info.ctrpart = true;
+                    info.ctrpartW = e->getCounterpart()->getWeight();
+                    stored[e->getCounterpart()] = true;
+                }
+                edges.append(info);
+            }
+        }
+    }
+    void undo() override {
+        Node* node = new Node(label);
+        MainWindow::connect(node, &Node::selected, mW, &MainWindow::nodeInteraction);
+        MainWindow::connect(node, &Node::edit, mW, &MainWindow::nodeLabelEdit);
+        nodes.append(node);
+        node->setPos(Pos);
+        scene->addItem(node);
+        i++;
+        for(EdgeInfo e: edges) {
+            Node* src=nullptr;
+            Node* dst=nullptr;
+            for(Node* n: mW->getNodes()) {
+                if(n->getLabel()==e.mainE.first) src = n;
+                else if(n->getLabel()==e.mainE.second) dst = n;
+                if(src&&dst) break; // If both src and dst were found, break out
+            }
+            if(src&&dst) {
+                Edge* E = new Edge(src,dst,e.edgeW);
+                MainWindow::connect(E, &Edge::selected, mW, &MainWindow::edgeInteraction);
+                E->directionToggle(directed);
+                E->getLabel()->setVisible(vis);
+                src->addEdge(E);
+                dst->addEdge(E);
+                scene->addItem(E);
+                if(e.ctrpart) {
+                    Edge* NE = new Edge(dst,src,e.ctrpartW);
+                    MainWindow::connect(NE, &Edge::selected, mW, &MainWindow::edgeInteraction);
+                    E->setCounterpart(NE);
+                    NE->setCounterpart(E);
+                    NE->getLabel()->setVisible(vis);
+                    src->addEdge(NE);
+                    dst->addEdge(NE);
+                    scene->addItem(NE);
+                }
+            }
+        }
+        MatrixWindow* mtw = mW->getMatrixWindow();
+        if(mtw) mtw->close();
+    }
+private:
+    QString label;
+    QPointF Pos;
+    QGraphicsScene* scene;
+    QList<Node*>& nodes;
+    QList<EdgeInfo> edges;
+    short unsigned int& i;
+    bool directed;
+    bool vis;
+    MainWindow* mW; //Storing main window pointer to get access to related slots
+};
+
+class MakeConnectionOP : public QUndoCommand {
+public:
+    MakeConnectionOP(QGraphicsScene* s, QString src, QString dst, bool dir, bool w, MainWindow* mw) : scene(s),source(src), dest(dst), directed(dir), weighted(w), mW(mw){}
+    void undo() override {
+        for(QGraphicsItem* it: scene->items()) {
+            Edge* e = qgraphicsitem_cast<Edge*>(it);
+            if(e) {
+                if(directed) {
+                    if(e->getSource()->getLabel()==source&&e->getDest()->getLabel()==dest) {
+                        MatrixWindow* mtw = mW->getMatrixWindow();
+                        if(mtw) {mtw->removeCon(e); return;}
+                        e->getSource()->removeEdge(e);
+                        e->getDest()->removeEdge(e);
+                        if(e->getCounterpart()) e->getCounterpart()->setCounterpart(nullptr);
+                        scene->removeItem(e);
+                        EdgeWindow* ew = mW->getEdgeWindow();
+                        if(ew) ew->close();
+                    }
+                } else {
+                    if((e->getSource()->getLabel()==source&&e->getDest()->getLabel()==dest) || (e->getDest()->getLabel()==source&&e->getSource()->getLabel()==dest)) {
+                        MatrixWindow* mtw = mW->getMatrixWindow();
+                        if(mtw) {mtw->removeCon(e); return;}
+                        e->getSource()->removeEdge(e);
+                        e->getDest()->removeEdge(e);
+                        scene->removeItem(e);
+                        EdgeWindow* ew = mW->getEdgeWindow();
+                        if(ew) ew->close();
+                    }
+                }
+            }
+        }
+    }
+private:
+    QGraphicsScene* scene;
+    QString source, dest;
+    bool directed;
+    bool weighted;
+    MainWindow* mW;
 };
 
 #endif // WINDOWS_H
