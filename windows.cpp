@@ -7,35 +7,6 @@ std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_int_distribution<> wRange(1,20);
 
-class AddNodeOP : public QUndoCommand {
-public:
-    AddNodeOP(QGraphicsScene* scene, QList<QString> l, QList<Node*>& ns, short unsigned int& I, MatrixWindow* ma, NodeWindow* nw) : labels(l), scene(scene), nodes(ns), ma(ma), nw(nw), i(I){}
-    void undo() override {
-        for(QString l : labels){
-            for(auto it: scene->items()) {
-                Node* n = qgraphicsitem_cast<Node*>(it);
-                if(n) {
-                    if(n->getLabel()==l) {
-                        scene->removeItem(n);
-                        nodes.removeAt(nodes.lastIndexOf(n));
-                        delete n;
-                        if(ma) ma->close();
-                        if(nw) nw->close();
-                        i--;
-                    }
-                }
-            }
-        }
-    }
-private:
-    QList<QString> labels;
-    QGraphicsScene* scene;
-    QList<Node*>& nodes;
-    MatrixWindow* ma;
-    NodeWindow* nw;
-    short unsigned int& i;
-};
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , main_ui(new Ui::MainWindow)
@@ -198,7 +169,7 @@ MainWindow::MainWindow(QWidget *parent)
                             }
                         }
                         MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
-                        e->directionToggle(main_ui->enDirection->checkState());
+                        e->directionToggle(true);
                         nodes[i]->addEdge(e);
                         nodes[j]->addEdge(e);
                         scene->addItem(e);
@@ -217,7 +188,7 @@ MainWindow::MainWindow(QWidget *parent)
                     if(valid) {
                         Edge* e = new Edge(nodes[i], nodes[j], wRange(gen));
                         MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
-                        e->directionToggle(main_ui->enDirection->checkState());
+                        e->directionToggle(false);
                         nodes[i]->addEdge(e);
                         nodes[j]->addEdge(e);
                         scene->addItem(e);
@@ -345,7 +316,7 @@ void MainWindow::on_insertNode_clicked()
             MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
             nodes.append(node);
             i++;
-            undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
+            undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
             return;
         }
         int inc{};
@@ -365,7 +336,7 @@ void MainWindow::on_insertNode_clicked()
             inc++;
             x+=50;
         }
-        undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
+        undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
         return;
     }
     if(l.isEmpty()) {
@@ -385,7 +356,7 @@ void MainWindow::on_insertNode_clicked()
         defaultNodeLabel++;
         i++;
         ls.append(num);
-        undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
+        undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
     } else {
         for(Node* no: nodes) {
             if(l==no->getLabel()) {
@@ -401,7 +372,7 @@ void MainWindow::on_insertNode_clicked()
         nodes.append(node);
         i++;
         ls.append(l);
-        undoStack->push(new AddNodeOP(scene,ls,nodes,i,matrixWindow,nodeWindow));
+        undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
     }
     if(matrixWindow) matrixWindow->close();
 }
@@ -445,6 +416,7 @@ void MainWindow::nodeInteraction(Node *node) {
                 e->setCounterpart(ctr);
             }
             MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
+            undoStack->push(new MakeConnectionOP(scene,tmp->getLabel(),node->getLabel(),main_ui->enDirection->checkState(),main_ui->enWeight->checkState(),this));
             e->directionToggle(main_ui->enDirection->checkState());
             tmp->addEdge(e);
             node->addEdge(e);
@@ -461,6 +433,7 @@ void MainWindow::nodeInteraction(Node *node) {
         }
     } else tmp = nullptr;
     if(canDelete) {
+        undoStack->push(new RemoveNodeOP(scene, node,node->pos(),nodes,i,main_ui->enDirection->checkState(),weightV->checkState(),this));
         QList<Edge*> edges = node->getCons();
         for(Edge* e: edges) {
             Node* s = e->getSource();
@@ -498,7 +471,6 @@ void MainWindow::nodeInteraction(Node *node) {
 void MainWindow::edgeInteraction(Edge *e) {
     if(canDelete) {
         if(matrixWindow) {
-            if(e->getCounterpart()) e->getCounterpart()->setCounterpart(nullptr); //Update its counterpart
             matrixWindow->removeCon(e);
             return;
         }
@@ -575,6 +547,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         if(eref[key]!=nullptr) return; //If the connection has already been made, ignore
         //Otherwise, execute proper operations
         Edge* e = new Edge(nref[topLeft.row()], nref[topLeft.column()]);
+        undoStack->push(new MakeConnectionOP(scene,nref[topLeft.row()]->getLabel(),nref[topLeft.column()]->getLabel(),main_ui->enDirection->checkState(),main_ui->enWeight->checkState(),this));
         nref[topLeft.row()]->addEdge(e);
         nref[topLeft.column()]->addEdge(e);
         eref[key] = e;
@@ -675,7 +648,7 @@ void MainWindow::on_save_clicked()
         "Save File",
         QDir::homePath(),           // Default path
         "Text Files (*.txt);;All Files (*)"  // File filters
-    );
+        );
 
     if (!fileName.isEmpty()) {
         QFile file(fileName);
@@ -836,6 +809,8 @@ void MainWindow::on_enDirection_stateChanged(int b)
                     toRemove.append(e->getCounterpart());
                     ignore.append(e);
                     e->setCounterpart(nullptr);
+                } else if(!e->getCounterpart()) {
+                    if(matrixWindow) matrixWindow->addCon(e);
                 }
             }
         }
@@ -921,10 +896,8 @@ void MatrixWindow::toggleDirection(bool dir) {
 void MatrixWindow::removeCon(Edge *e) {
     for(auto c: cellCons) {
         if(c.second == e) {
-            c.second = nullptr;
             model->setData(model->index(c.first.first, c.first.second), "0", Qt::EditRole);
             if(!directed) {
-                cellCons[std::pair(c.first.second, c.first.first)] = nullptr;
                 model->setData(model->index(c.first.second, c.first.first), "0", Qt::EditRole);
             }
         }
@@ -1047,4 +1020,3 @@ NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QWidget *parent) : QDia
         }
     });
 }
-
