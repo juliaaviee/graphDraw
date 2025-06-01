@@ -426,7 +426,7 @@ void MainWindow::nodeInteraction(Node *node) {
             if(!weightV->checkState()) e->getLabel()->setVisible(false);
             if(weightP->checkState()) {
                 if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-                edgeWindow = new EdgeWindow(e);
+                edgeWindow = new EdgeWindow(e,scene,undoStack);
                 edgeWindow->show();
                 edgeWindow->raise();
             }
@@ -471,11 +471,13 @@ void MainWindow::nodeInteraction(Node *node) {
 void MainWindow::edgeInteraction(Edge *e) {
     if(canDelete) {
         if(matrixWindow) {
+            undoStack->push(new RemoveConnectionOP(scene,e->getSource()->getLabel(),e->getDest()->getLabel(),e->getWeight(),main_ui->enDirection->checkState(),weightV->checkState(),e->getCounterpart()!=nullptr,this));
             matrixWindow->removeCon(e);
             return;
         }
         e->getSource()->removeEdge(e);
         e->getDest()->removeEdge(e);
+        undoStack->push(new RemoveConnectionOP(scene,e->getSource()->getLabel(),e->getDest()->getLabel(),e->getWeight(),main_ui->enDirection->checkState(),weightV->checkState(),e->getCounterpart()!=nullptr,this));
         if(e->getCounterpart()) e->getCounterpart()->setCounterpart(nullptr);
         scene->removeItem(e);
         delete e;
@@ -484,7 +486,7 @@ void MainWindow::edgeInteraction(Edge *e) {
     }
     if(main_ui->enWeight->checkState()) {
         if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-        edgeWindow = new EdgeWindow(e);
+        edgeWindow = new EdgeWindow(e,scene,undoStack);
         edgeWindow->show();
         edgeWindow->raise();
     }
@@ -532,7 +534,7 @@ void MainWindow::on_showMatrix_clicked()
 
 void MainWindow::nodeLabelEdit(Node* n) {
     if(nodeWindow) {nodeWindow->close(); delete nodeWindow;}
-    nodeWindow = new NodeWindow(n, nodes);
+    nodeWindow = new NodeWindow(n, nodes, undoStack);
     nodeWindow->show();
 }
 void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &bottomRight) {
@@ -571,7 +573,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         if(!weightV->checkState()) e->getLabel()->setVisible(false);
         if(weightP->checkState()) {
             if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-            edgeWindow = new EdgeWindow(e);
+            edgeWindow = new EdgeWindow(e,scene,undoStack);
             edgeWindow->show();
             edgeWindow->raise();
         }
@@ -586,6 +588,7 @@ void MainWindow::matrixResponse(const QModelIndex &topLeft, const QModelIndex &b
         if(!eref[key]) return; //If there was no connection to begin with, ignore
         nref[topLeft.row()]->removeEdge(eref[key]);
         nref[topLeft.column()]->removeEdge(eref[key]);
+        undoStack->push(new RemoveConnectionOP(scene,eref[key]->getSource()->getLabel(),eref[key]->getDest()->getLabel(),eref[key]->getWeight(),main_ui->enDirection->checkState(),weightV->checkState(),eref[key]->getCounterpart()!=nullptr,this));
         if(eref[key]->getCounterpart()) eref[key]->getCounterpart()->setCounterpart(nullptr); //If there is a counterpart, center it
         scene->removeItem(eref[key]);
         eref[key] = nullptr;
@@ -974,23 +977,23 @@ void RouteWindow::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 
-EdgeWindow::EdgeWindow(Edge* e, QWidget *parent) : QDialog(parent) {
+EdgeWindow::EdgeWindow(Edge* e, QGraphicsScene* sc, QUndoStack* undS, QWidget *parent) : QDialog(parent), edge(e), scene(sc), undoStack(undS){
     setFixedSize(140,25);
     setWindowTitle("Insira o peso");
     w = new QLineEdit(this);
     w->setValidator(new QIntValidator(1,9999, this));
-    edge = e;
     EdgeWindow::connect(w, &QLineEdit::returnPressed, this, [this]() {
         QString l = w->text();
         if(l.isEmpty()) close();
         else {
+            undoStack->push(new EditWeightOP(scene,edge->getSource()->getLabel(),edge->getDest()->getLabel(),edge->getWeight(),edge->isDirected()));
             edge->setWeight(l.toInt());
             close();
         }
     });
 }
 
-NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QWidget *parent) : QDialog(parent), nodes(ns), node(n){
+NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QUndoStack* undS, QWidget *parent) : QDialog(parent), nodes(ns), node(n), undoStack(undS){
     setFixedSize(135,35);
     setWindowTitle("Insira o rótulo");
     newLabel = new QLineEdit(this);
@@ -1013,6 +1016,7 @@ NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QWidget *parent) : QDia
                 }
             }
             if(valid) {
+                undoStack->push(new EditNodeOP(node->getLabel(), newLabel->text(), nodes));
                 node->setLabel(newLabel->text());
                 for(Edge* e : node->getCons()) e->updatePos();
                 close();
