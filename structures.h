@@ -51,17 +51,18 @@ class Edge : public QObject, public QGraphicsLineItem {
     Q_OBJECT
 public:
     Edge(Node* sourceNode, Node* destNode, int w=1);
-    Node* getSource();
-    Node* getDest();
+    Node* getSource() {return source;}
+    Node* getDest() {return dest;}
     void updatePos();
     void highlightEdge();
     void clearEdge();
     void setWeight(int w);
-    int getWeight();
-    void directionToggle(bool t);
-    void setCounterpart(Edge* c);
-    Edge* getCounterpart();
-    WeightLabel* getLabel();
+    int getWeight() {return weight;}
+    void directionToggle(bool t) {directed = t; updatePos();}
+    bool isDirected() {return directed;}
+    void setCounterpart(Edge* c) {ctrpart = c; updatePos();}
+    Edge* getCounterpart() {return ctrpart;}
+    WeightLabel* getLabel() {return label;}
 signals:
     void selected(Edge* e);
 protected:
@@ -100,10 +101,10 @@ class Node : public QObject, public QGraphicsEllipseItem {
 public:
     explicit Node(const QString& label, QGraphicsItem* parent = nullptr);
     void setLabel(const QString& newLabel);
-    QString getLabel();
-    QList<Edge*> getCons();
-    void addEdge(Edge* e);
-    void removeEdge(Edge* e);
+    QString getLabel() {return labelItem->toPlainText();}
+    QList<Edge*> getCons() {return cons;}
+    void addEdge(Edge* e) {cons.append(e);}
+    void removeEdge(Edge* e) {cons.removeAt(cons.lastIndexOf(e));}
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     QRectF boundingRect() const override;
 signals:
