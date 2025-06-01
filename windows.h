@@ -57,6 +57,7 @@ public:
     RouteWindow* getRouteWindow() {return routeWindow;}
     EdgeWindow* getEdgeWindow() {return edgeWindow;}
     NodeWindow* getNodeWindow() {return nodeWindow;}
+    QGraphicsScene* getScene() {return scene;}
     const QList<Node*>& getNodes() {return nodes;}
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -151,21 +152,24 @@ class EdgeWindow : public QDialog
 {
     Q_OBJECT
 public:
-    EdgeWindow(Edge* e, QWidget* parent = nullptr);
+    EdgeWindow(Edge* e, QGraphicsScene* sc, QUndoStack* undS, QWidget* parent = nullptr);
 private:
     QLineEdit* w;
-    Edge* edge=nullptr;
+    Edge* edge;
+    QGraphicsScene* scene;
+    QUndoStack* undoStack;
 };
 
 class NodeWindow: public QDialog {
     Q_OBJECT
 public:
-    NodeWindow(Node* n, const QList<Node*>& ns, QWidget* parent = nullptr);
+    NodeWindow(Node* n, const QList<Node*>& ns, QUndoStack* undS,QWidget* parent = nullptr);
 private:
     QLineEdit* newLabel;
     QLabel* error;
     const QList<Node*>& nodes;
     Node* node;
+    QUndoStack* undoStack;
 };
 
 class RouteWindow : public QDialog
@@ -327,6 +331,85 @@ private:
     bool directed;
     bool weighted;
     MainWindow* mW;
+};
+
+class RemoveConnectionOP : public QUndoCommand {
+public:
+    RemoveConnectionOP(QGraphicsScene* s, QString src, QString dst, int wt, bool dir, bool w, bool ctr,MainWindow* mw) : scene(s),source(src), dest(dst), directed(dir), weighted(w), counter(ctr), weight(wt), mW(mw){}
+    void undo() override {
+        Node* src=nullptr;
+        Node* dst=nullptr;
+        for(Node* n: mW->getNodes()) {
+            if(n->getLabel()==source) src = n;
+            else if(n->getLabel()==dest) dst = n;
+            if(src&&dst) break;
+        }
+        if(src&&dst) {
+            Edge* e = new Edge(src,dst, weight);
+            e->directionToggle(directed);
+            MainWindow::connect(e, &Edge::selected, mW, &MainWindow::edgeInteraction);
+            e->getLabel()->setVisible(weighted);
+            src->addEdge(e);
+            dst->addEdge(e);
+            scene->addItem(e);
+            MatrixWindow* mtw = mW->getMatrixWindow();
+            if(mtw) mtw->addCon(e);
+            if(counter) {
+                for(auto it: scene->items()) {
+                    Edge* edge = qgraphicsitem_cast<Edge*>(it);
+                    if(edge) {
+                        if(edge->getSource()==dst&&edge->getDest()==src) {
+                            e->setCounterpart(edge);
+                            edge->setCounterpart(e);
+                            edge->getLabel()->setVisible(weighted);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+private:
+    QGraphicsScene* scene;
+    QString source, dest;
+    bool directed;
+    bool weighted;
+    bool counter;
+    int weight;
+    MainWindow* mW;
+};
+
+class EditNodeOP : public QUndoCommand {
+public:
+    EditNodeOP(QString oldL, QString curL, const QList<Node*>& ns) : oldLabel(oldL), curLabel(curL), nds(ns){}
+    void undo() override {
+        for(Node* n: nds) if(n->getLabel()==curLabel) {n->setLabel(oldLabel); break;}
+    }
+private:
+    QString oldLabel, curLabel;
+    const QList<Node*>& nds;
+};
+
+class EditWeightOP : public QUndoCommand {
+public:
+    EditWeightOP(QGraphicsScene* scene, QString src, QString dst, int oldW, bool dir) : scene(scene), source(src), dest(dst), weight(oldW),directed(dir) {}
+    void undo() override {
+        for(auto it: scene->items()) {
+            Edge* e = qgraphicsitem_cast<Edge*>(it);
+            if(e) {
+                if(directed) {
+                    if(e->getSource()->getLabel()==source&&e->getDest()->getLabel()==dest) {e->setWeight(weight); break;}
+                } else {
+                    if((e->getSource()->getLabel()==source&&e->getDest()->getLabel()==dest)||(e->getDest()->getLabel()==source&&e->getSource()->getLabel()==dest)) {e->setWeight(weight); break;}
+                }
+            }
+        }
+    }
+private:
+    QGraphicsScene* scene;
+    QString source, dest;
+    int weight;
+    bool directed;
 };
 
 #endif // WINDOWS_H
