@@ -16,7 +16,7 @@ Node::Node(const QString& label, QGraphicsItem* parent)
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
     switch(textWidth) {
     case 40:
-        labelItem->setPos(-labelItem->boundingRect().width()/2, -12);
+        labelItem->setPos(-labelItem->boundingRect().width()/2, -labelItem->boundingRect().height()/2);
         break;
     default:
         labelItem->setPos(rect().topLeft().x()/1.6, -12);
@@ -32,23 +32,11 @@ void Node::setLabel(const QString& newLabel) {
     setRect(-20, -20, textWidth, 40);
     switch(textWidth) {
         case 40:
-            labelItem->setPos(-labelItem->boundingRect().width()/2, -12);
+            labelItem->setPos(-labelItem->boundingRect().width()/2, -labelItem->boundingRect().height()/2);
             break;
         default:
             labelItem->setPos(rect().topLeft().x()/1.6, -12);
     }
-}
-
-QString Node::getLabel() {
-    return labelItem->toPlainText();
-}
-
-void Node::addEdge(Edge* e) {
-    cons.append(e);
-}
-
-QList<Edge*> Node::getCons() {
-    return cons;
 }
 
 //itemChange was overriden so that the nodes handle related edges dynamically, and emit a signal whenever selected for making connections through MainWindow's nodeInteraction slot
@@ -93,9 +81,6 @@ QRectF Node::boundingRect() const {
     return rect().adjusted(-extra, -extra, extra, extra);
 }
 
-void Node::removeEdge(Edge* e) {
-    cons.removeAt(cons.lastIndexOf(e));
-}
 Edge::Edge(Node* sourceNode, Node* destNode, int w) : source(sourceNode), dest(destNode), weight(w){
     setFlag(QGraphicsItem::ItemIsSelectable);
     setPen(QPen(Qt::black, 3));
@@ -145,16 +130,7 @@ QVariant Edge::itemChange(GraphicsItemChange change, const QVariant &value) {
     }
     return QGraphicsLineItem::itemChange(change, value);
 }
-Node* Edge::getSource() {
-    return source;
-}
-Node* Edge::getDest() {
-    return dest;
-}
 
-Edge* Edge::getCounterpart() {
-    return ctrpart;
-}
 void Edge::updatePos() {
     QRectF sourceRect = source->sceneBoundingRect();
     QRectF destRect = dest->sceneBoundingRect();
@@ -263,29 +239,11 @@ QPainterPath Edge::shape() const {
 }
 void Edge::setWeight(int w) {
     weight = w;
-    if(ctrpart) {
-        updatePos();
-        ctrpart->updatePos();
-    }
+    if(ctrpart) ctrpart->updatePos();
     label->setPlainText(QString::number(w));
-}
-
-int Edge::getWeight() {
-    return weight;
-}
-
-void Edge::directionToggle(bool t) {
-    directed = t;
     updatePos();
 }
 
-void Edge::setCounterpart(Edge* c) {
-    ctrpart = c;
-    updatePos();
-}
-WeightLabel* Edge::getLabel() {
-    return label;
-}
 void Edge::highlightEdge() {
     setPen(QPen(Qt::red, 5));
     setZValue(1);
