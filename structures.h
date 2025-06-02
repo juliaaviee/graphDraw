@@ -3,6 +3,7 @@
 
 #include <QApplication>
 #include <QGraphicsEllipseItem>
+#include <QEvent>
 #include <QGraphicsTextItem>
 #include <QFont>
 #include <QFontMetricsF>
@@ -17,8 +18,9 @@
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
+#include <QGestureEvent>
 #include <QSpinBox>
-#include <QWheelEvent>
+#include <QPinchGesture>
 
 class Node;
 
@@ -38,7 +40,7 @@ protected:
         // Calculate text bounds
         QRectF rect = boundingRect();
         // Draw background rectangle
-        painter->setBrush(Qt::white); // Semi-transparent white
+        painter->setBrush(Qt::black);
         painter->setPen(QPen(Qt::black, 1)); // Optional border
         painter->drawRect(rect);
         QGraphicsTextItem::paint(painter, option, widget); // Use base implementation
@@ -122,21 +124,33 @@ class GraphView : public QGraphicsView {
     Q_OBJECT
 
 public:
-    GraphView(QWidget *parent = nullptr)
-        : QGraphicsView(parent), zoomFactor(1.15) {}
-
-protected:
-    void wheelEvent(QWheelEvent *event) override {
-        if (QApplication::keyboardModifiers() == Qt::ControlModifier) {
-            double factor = event->angleDelta().y() > 0 ? zoomFactor : 1.0 / zoomFactor;
-            double newZoom = currentZoom * factor;
-
-            if (newZoom < minZoom || newZoom > maxZoom) return;  // Block zooming if out of bounds
-            scale(factor, factor);
-            currentZoom = newZoom;
-            event->accept();
-        } else QGraphicsView::wheelEvent(event);  // Default behavior
+    GraphView(QWidget *parent = nullptr): QGraphicsView(parent), zoomFactor(1.15) {
+        grabGesture(Qt::PinchGesture);
+        setAttribute(Qt::WA_AcceptTouchEvents);
+        viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
+        setInteractive(true); // Just in case
     }
+    bool event(QEvent *event) override {
+        if (event->type() == QEvent::NativeGesture) {
+            QNativeGestureEvent *gestureEvent = static_cast<QNativeGestureEvent *>(event);
+
+            if (gestureEvent->gestureType() == Qt::ZoomNativeGesture) {
+                qreal delta = gestureEvent->value(); // Usually between -1 and 1
+                const qreal scaleFactor = 1 + delta; // Convert to scaling factor
+
+                // Clamp zoom
+                double newZoom = currentZoom * scaleFactor;
+                if (newZoom < minZoom || newZoom > maxZoom)
+                    return true;
+
+                scale(scaleFactor, scaleFactor);
+                currentZoom = newZoom;
+                return true;
+            }
+        }
+        return QGraphicsView::event(event);
+    }
+
 private:
     const double zoomFactor;
     double currentZoom = 1.0;
