@@ -11,7 +11,7 @@
 ### Drawing saving/loading
 ![drawing_info](https://github.com/user-attachments/assets/607771f8-ad09-443f-8eef-a904de33a960)
 ### Basic commands:
-### Ctrl+Z -> Rolling back actions
-### Ctrl+A -> Connection mode enabling/disabling
-### Ctrl+X -> Deletion mode enabling/disabling
-### Pinch gesture (touchpad) -> Zoom in/out of the graph scene
+- ### Ctrl+Z -> Rolling back actions
+- ### Ctrl+A -> Connection mode enabling/disabling
+- ### Ctrl+X -> Deletion mode enabling/disabling
+- ### Pinch gesture (touchpad) -> Zoom in/out of the graph scene
