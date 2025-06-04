@@ -1,5 +1,5 @@
 # graphDraw: Interactive graph drawing app
-## I made this for a university teacher so that he could use it in his graph theory classes, making them more interactive.
+## ![interface](https://github.com/user-attachments/assets/7f69b8b0-2c07-4f94-9c20-e5d23a439fa2)
 ### Features:
 ### Direction and weight support
 ### Dynamic adjacency matrix (establishing and removing connections through bits)
