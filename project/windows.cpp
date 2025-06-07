@@ -66,7 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
     sorting->addButton(length);
     length->setChecked(true);
 
-    connectionS = new QShortcut(QKeySequence("Ctrl+A"), this);
+    connectionS = new QShortcut(QKeySequence("Ctrl+A"), this); //Creating connection mode shortcut and its activation logic
     MainWindow::connect(connectionS, &QShortcut::activated, this, [this]() {
         canDelete = false;
         main_ui->delMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
@@ -83,7 +83,7 @@ MainWindow::MainWindow(QWidget *parent)
     MainWindow::connect(revert, &QShortcut::activated, this, [this](){
         undoStack->undo();
     });
-    deletionS = new QShortcut(QKeySequence("Ctrl+X"), this);
+    deletionS = new QShortcut(QKeySequence("Ctrl+X"), this); // Creating deletion mode shortcut and its activation logic
     MainWindow::connect(deletionS, &QShortcut::activated, this, [this]() {
         canConnect = false;
         main_ui->conMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
@@ -513,11 +513,11 @@ void MainWindow::on_showMatrix_clicked()
     int inc{};
     //World's most illegible while loop
     while(inc<cnt) {
-        matrix[inc].first = nodes[inc]->getLabel();
+        matrix[inc].first = nodes[inc]->getLabel(); //First string of the pair is the row label
         matrix[inc].second[idx[matrix[inc].first]] = 'X';
         QList<Edge*> es = nodes[inc]->getCons();
-        if(main_ui->enDirection->checkState()) {for(Edge* e: es) if(e->getDest()!=nodes[inc]) matrix[inc].second[idx[e->getDest()->getLabel()]] = '1';}
-        else {
+        if(main_ui->enDirection->checkState()) {for(Edge* e: es) if(e->getDest()!=nodes[inc]) matrix[inc].second[idx[e->getDest()->getLabel()]] = '1';} //If it's a directed graph, loop through all edges related to the current node. For each edge, if the destination is not the node itself, set bit
+        else { //Otherwise, loop through all edges related to the current node, set bits for two-way connections
             for(Edge* e: es) {
                 matrix[idx[e->getSource()->getLabel()]].second[idx[e->getDest()->getLabel()]] = '1';
                 matrix[idx[e->getDest()->getLabel()]].second[idx[e->getSource()->getLabel()]] = '1';
@@ -533,7 +533,7 @@ void MainWindow::on_showMatrix_clicked()
 }
 
 void MainWindow::nodeLabelEdit(Node* n) {
-    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;}
+    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;} //Closing previous window and ensuring its cleanup (if it exists)
     nodeWindow = new NodeWindow(n, nodes, undoStack);
     nodeWindow->show();
 }
@@ -611,7 +611,7 @@ void MainWindow::on_reset_clicked()
 
 void MainWindow::on_save_clicked()
 {
-    if(scene->items().empty()) {qDebug()<<"Scene is empty"; return;}
+    if(scene->items().empty()) return; //If the scene is empty, don't even bother
     QString content;
     std::unordered_map<int, Node*> node_map;
     std::unordered_map<Node*, int> idx;
@@ -622,14 +622,14 @@ void MainWindow::on_save_clicked()
         idx[n] = cnt;
         cnt++;
     }
-    content.removeLast();
-    content += "\n" + QString::number(main_ui->enDirection->checkState()) + "\n" + QString::number(main_ui->enWeight->checkState()) + "\n";
+    content.removeLast(); //Cleaning leftover pipe
+    content += "\n" + QString::number(main_ui->enDirection->checkState()) + "\n" + QString::number(main_ui->enWeight->checkState()) + "\n"; //Direction and weight specifications 
     if(cnt>1) {
         QList<QList<QString>> matrix(cnt, QList<QString>(cnt, "0"));
         if(main_ui->enDirection->checkState()) {
             for(auto it: scene->items()) {
                 Edge* e = qgraphicsitem_cast<Edge*>(it);
-                if(e) matrix[idx[e->getSource()]][idx[e->getDest()]] = QString::number(e->getWeight());
+                if(e) matrix[idx[e->getSource()]][idx[e->getDest()]] = QString::number(e->getWeight()); //If the item is an edge, set its correspondent bit in the matrix
             }
         } else {
             for(auto it: scene->items()) {
@@ -640,7 +640,7 @@ void MainWindow::on_save_clicked()
                 }
             }
         }
-        for(QList<QString> row: matrix) {
+        for(QList<QString> row: matrix) { //Populating content with the matrix, separating columns with commas
             for(QString col: row) content += col + ",";
             content.removeLast();
             content += "\n";
