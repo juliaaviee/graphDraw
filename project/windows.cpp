@@ -2,7 +2,7 @@
 #include "ui_mainwindow.h"
 #include <random>
 
-unsigned short defaultNodeLabel{1}, i{};
+unsigned short defaultNodeLabel{1}, nodeCount{};
 std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_int_distribution<> wRange(1,20);
@@ -66,7 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
     sorting->addButton(length);
     length->setChecked(true);
 
-    connectionS = new QShortcut(QKeySequence("Ctrl+A"), this); //Creating connection mode shortcut and its activation logic
+    connectionS = new QShortcut(QKeySequence("Ctrl+A"), this);
     MainWindow::connect(connectionS, &QShortcut::activated, this, [this]() {
         canDelete = false;
         main_ui->delMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
@@ -83,7 +83,7 @@ MainWindow::MainWindow(QWidget *parent)
     MainWindow::connect(revert, &QShortcut::activated, this, [this](){
         undoStack->undo();
     });
-    deletionS = new QShortcut(QKeySequence("Ctrl+X"), this); // Creating deletion mode shortcut and its activation logic
+    deletionS = new QShortcut(QKeySequence("Ctrl+X"), this);
     MainWindow::connect(deletionS, &QShortcut::activated, this, [this]() {
         canConnect = false;
         main_ui->conMode->setStyleSheet("QCheckBox::indicator {background-color: red;}");
@@ -315,8 +315,8 @@ void MainWindow::on_insertNode_clicked()
             MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
             MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
             nodes.append(node);
-            i++;
-            undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
+            nodeCount++;
+            undoStack->push(new AddNodeOP(scene,ls,nodes,nodeCount,this));
             return;
         }
         int inc{};
@@ -332,11 +332,11 @@ void MainWindow::on_insertNode_clicked()
             MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
             nodes.append(node);
             defaultNodeLabel++;
-            i++;
+            nodeCount++;
             inc++;
             x+=50;
         }
-        undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
+        undoStack->push(new AddNodeOP(scene,ls,nodes,nodeCount,this));
         return;
     }
     if(l.isEmpty()) {
@@ -354,9 +354,9 @@ void MainWindow::on_insertNode_clicked()
         MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
         nodes.append(node);
         defaultNodeLabel++;
-        i++;
+        nodeCount++;
         ls.append(num);
-        undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
+        undoStack->push(new AddNodeOP(scene,ls,nodes,nodeCount,this));
     } else {
         for(Node* no: nodes) {
             if(l==no->getLabel()) {
@@ -370,9 +370,9 @@ void MainWindow::on_insertNode_clicked()
         MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
         MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
         nodes.append(node);
-        i++;
+        nodeCount++;
         ls.append(l);
-        undoStack->push(new AddNodeOP(scene,ls,nodes,i,this));
+        undoStack->push(new AddNodeOP(scene,ls,nodes,nodeCount,this));
     }
     if(matrixWindow) matrixWindow->close();
 }
@@ -433,7 +433,7 @@ void MainWindow::nodeInteraction(Node *node) {
         }
     } else tmp = nullptr;
     if(canDelete) {
-        undoStack->push(new RemoveNodeOP(scene, node,node->pos(),nodes,i,main_ui->enDirection->checkState(),weightV->checkState(),this));
+        undoStack->push(new RemoveNodeOP(scene, node,node->pos(),nodes,nodeCount,main_ui->enDirection->checkState(),weightV->checkState(),this));
         QList<Edge*> edges = node->getCons();
         for(Edge* e: edges) {
             Node* s = e->getSource();
@@ -462,7 +462,7 @@ void MainWindow::nodeInteraction(Node *node) {
         scene->removeItem(node);
         nodes.removeAt(nodes.lastIndexOf(node));
         delete node;
-        i--;
+        nodeCount--;
         if(matrixWindow) matrixWindow->close();
         if(nodeWindow) nodeWindow->close();
     }
@@ -509,15 +509,15 @@ void MainWindow::on_showMatrix_clicked()
         cnt++;
     }
     //Refactoring matrix building
-    QList<QPair<QString, QString>> matrix(cnt, {"", QString(i,'0')});
+    QList<QPair<QString, QString>> matrix(cnt, {"", QString(nodeCount,'0')});
     int inc{};
     //World's most illegible while loop
     while(inc<cnt) {
-        matrix[inc].first = nodes[inc]->getLabel(); //First string of the pair is the row label
+        matrix[inc].first = nodes[inc]->getLabel();
         matrix[inc].second[idx[matrix[inc].first]] = 'X';
         QList<Edge*> es = nodes[inc]->getCons();
-        if(main_ui->enDirection->checkState()) {for(Edge* e: es) if(e->getDest()!=nodes[inc]) matrix[inc].second[idx[e->getDest()->getLabel()]] = '1';} //If it's a directed graph, loop through all edges related to the current node. For each edge, if the destination is not the node itself, set bit
-        else { //Otherwise, loop through all edges related to the current node, set bits for two-way connections
+        if(main_ui->enDirection->checkState()) {for(Edge* e: es) if(e->getDest()!=nodes[inc]) matrix[inc].second[idx[e->getDest()->getLabel()]] = '1';}
+        else {
             for(Edge* e: es) {
                 matrix[idx[e->getSource()->getLabel()]].second[idx[e->getDest()->getLabel()]] = '1';
                 matrix[idx[e->getDest()->getLabel()]].second[idx[e->getSource()->getLabel()]] = '1';
@@ -533,7 +533,7 @@ void MainWindow::on_showMatrix_clicked()
 }
 
 void MainWindow::nodeLabelEdit(Node* n) {
-    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;} //Closing previous window and ensuring its cleanup (if it exists)
+    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;}
     nodeWindow = new NodeWindow(n, nodes, undoStack);
     nodeWindow->show();
 }
@@ -606,12 +606,12 @@ void MainWindow::on_reset_clicked()
     scene->clear();
     nodes.clear();
     defaultNodeLabel = 1;
-    i=0;
+    nodeCount=0;
 }
 
 void MainWindow::on_save_clicked()
 {
-    if(scene->items().empty()) return; //If the scene is empty, don't even bother
+    if(scene->items().empty()) {qDebug()<<"Scene is empty"; return;}
     QString content;
     std::unordered_map<int, Node*> node_map;
     std::unordered_map<Node*, int> idx;
@@ -622,14 +622,14 @@ void MainWindow::on_save_clicked()
         idx[n] = cnt;
         cnt++;
     }
-    content.removeLast(); //Cleaning leftover pipe
-    content += "\n" + QString::number(main_ui->enDirection->checkState()) + "\n" + QString::number(main_ui->enWeight->checkState()) + "\n"; //Direction and weight specifications 
+    content.removeLast();
+    content += "\n" + QString::number(main_ui->enDirection->checkState()) + "\n" + QString::number(main_ui->enWeight->checkState()) + "\n";
     if(cnt>1) {
         QList<QList<QString>> matrix(cnt, QList<QString>(cnt, "0"));
         if(main_ui->enDirection->checkState()) {
             for(auto it: scene->items()) {
                 Edge* e = qgraphicsitem_cast<Edge*>(it);
-                if(e) matrix[idx[e->getSource()]][idx[e->getDest()]] = QString::number(e->getWeight()); //If the item is an edge, set its correspondent bit in the matrix
+                if(e) matrix[idx[e->getSource()]][idx[e->getDest()]] = QString::number(e->getWeight());
             }
         } else {
             for(auto it: scene->items()) {
@@ -640,7 +640,7 @@ void MainWindow::on_save_clicked()
                 }
             }
         }
-        for(QList<QString> row: matrix) { //Populating content with the matrix, separating columns with commas
+        for(QList<QString> row: matrix) {
             for(QString col: row) content += col + ",";
             content.removeLast();
             content += "\n";
@@ -689,17 +689,17 @@ void MainWindow::on_load_clicked()
                 MainWindow::connect(node, &Node::selected, this, &MainWindow::nodeInteraction);
                 MainWindow::connect(node, &Node::edit, this, &MainWindow::nodeLabelEdit);
                 nodes.append(node);
-                n_map[i] = node;
-                i++;
+                n_map[nodeCount] = node;
+                nodeCount++;
                 node->setPos(m[1].toDouble(), m[2].toDouble());
             }
-            if(i>1) {
+            if(nodeCount>1) {
                 QList<QList<QString>> matrix;
-                for(int c=3;c-3<i;c++) matrix.append(lines[c].split(",")); //Storing the matrix
+                for(int c=3;c-3<nodeCount;c++) matrix.append(lines[c].split(",")); //Storing the matrix
                 std::unordered_map<std::pair<int,int>, bool, PairHash> cellCons; //Mapping coordinates to a boolean that indicates if we've already made this connection or not
                 if(main_ui->enDirection->checkState()){
-                    for(int c = 0;c<i;c++) {
-                        for(int j = 0;j<i;j++) {
+                    for(int c = 0;c<nodeCount;c++) {
+                        for(int j = 0;j<nodeCount;j++) {
                             if(matrix[c][j]!="0" && !cellCons[std::pair(c,j)]) {
                                 if(matrix[j][c]!="0" && !cellCons[std::pair(j,c)]) {
                                     Edge* e = new Edge(n_map[c], n_map[j], matrix[c][j].toInt());
@@ -734,8 +734,8 @@ void MainWindow::on_load_clicked()
                         }
                     }
                 } else {
-                    for(int c = 0;c<i;c++) {
-                        for(int j = 0;j<i;j++) {
+                    for(int c = 0;c<nodeCount;c++) {
+                        for(int j = 0;j<nodeCount;j++) {
                             if(!cellCons[std::pair(c,j)] && matrix[c][j] != "0"){
                                 Edge* e = new Edge(n_map[c], n_map[j], matrix[c][j].toInt());
                                 MainWindow::connect(e, &Edge::selected, this, &MainWindow::edgeInteraction);
@@ -829,10 +829,10 @@ void MainWindow::on_enDirection_stateChanged(int b)
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     //Ensuring all windows are closed
-    if(routeWindow) {routeWindow->close(); delete routeWindow;}
-    if(matrixWindow) {matrixWindow->close(); delete matrixWindow;}
-    if(edgeWindow) {edgeWindow->close(); delete edgeWindow;}
-    if(nodeWindow) {nodeWindow->close(); delete nodeWindow;}
+    if(routeWindow) routeWindow->close();
+    if(matrixWindow) matrixWindow->close();
+    if(edgeWindow) edgeWindow->close();
+    if(nodeWindow) nodeWindow->close();
     event->accept();
 }
 MatrixWindow::MatrixWindow(unsigned short r, unsigned short c, const QList<QPair<QString, QString>> &m, const std::unordered_map<int, Node*> &nMap, bool dir, QWidget *parent) : QDialog(parent), nodeMap(nMap), directed(dir){
@@ -1013,12 +1013,12 @@ NodeWindow::NodeWindow(Node *n, const QList<Node *> &ns, QUndoStack* undS, QWidg
                     error->setVisible(true);
                     QTimer::singleShot(2000, error, &QLabel::hide);
                     valid = false;
+                    break;
                 }
             }
             if(valid) {
                 undoStack->push(new EditNodeOP(node->getLabel(), newLabel->text(), nodes));
                 node->setLabel(newLabel->text());
-                for(Edge* e : node->getCons()) e->updatePos();
                 close();
             }
         }
